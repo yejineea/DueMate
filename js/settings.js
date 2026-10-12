@@ -7,7 +7,7 @@ function renderSettings() {
   const sched = [...state.schedule].sort((a, b) => a.day - b.day || a.start.localeCompare(b.start));
   return `
   <section class="panel">
-    <h3>⏰ 요일별 공부 가능 시간</h3>
+    <h3>요일별 공부 가능 시간</h3>
     <div class="days">${WEEKDAYS.map((d, i) => `
       <label>${d} <span class="muted small">고정 일정 ${fixedHours(i)}h</span>
         <input type="number" min="0" max="24" step="0.5" data-setting="day" data-i="${i}" value="${s.dailyHours[i]}">
@@ -16,10 +16,10 @@ function renderSettings() {
   </section>
 
   <section class="panel">
-    <h3>🏫 수업·아르바이트 시간표</h3>
+    <h3>수업·아르바이트 시간표</h3>
     ${sched.length ? `<table class="table"><thead><tr><th>요일</th><th>시간</th><th>내용</th><th></th></tr></thead><tbody>
       ${sched.map((x) => `<tr><td>${WEEKDAYS[x.day]}</td><td>${x.start} ~ ${x.end}</td><td>${esc(x.label)}</td>
-        <td><button class="btn xs danger" data-action="del-schedule" data-sid="${x.id}">✕</button></td></tr>`).join('')}
+        <td><button class="btn xs danger" data-action="del-schedule" data-sid="${x.id}">삭제</button></td></tr>`).join('')}
     </tbody></table>` : '<p class="muted small">등록된 고정 일정이 없습니다.</p>'}
     <form class="inline" data-form="add-schedule">
       <select name="day">${WEEKDAYS.map((d, i) => `<option value="${i}">${d}</option>`).join('')}</select>
@@ -30,7 +30,7 @@ function renderSettings() {
   </section>
 
   <section class="panel">
-    <h3>🔔 알림 · 🎨 테마</h3>
+    <h3>알림 · 테마</h3>
     <div class="row">
       <label class="form">임박 마감 알림 기준
         <select data-setting="alertHours">${[6, 12, 24, 48, 72].map((h) => `<option value="${h}" ${h === s.alertHours ? 'selected' : ''}>마감 ${h}시간 전</option>`).join('')}</select>
@@ -45,15 +45,15 @@ function renderSettings() {
   </section>
 
   <section class="panel">
-    <h3>📘 과목 관리</h3>
-    <div class="chips">${state.subjects.map((x) => `<span class="chip-tag">${esc(x)} <button class="btn xs" data-action="del-subject" data-name="${esc(x)}">✕</button></span>`).join('') || '<span class="muted small">과목이 없습니다.</span>'}</div>
+    <h3>과목 관리</h3>
+    <div class="chips">${state.subjects.map((x) => `<span class="chip-tag">${esc(x)} <button class="btn xs" data-action="del-subject" data-name="${esc(x)}">삭제</button></span>`).join('') || '<span class="muted small">과목이 없습니다.</span>'}</div>
     <form class="inline" data-form="add-subject">
       <input name="subject" placeholder="새 과목명" required maxlength="30"><button class="btn sm">추가</button>
     </form>
   </section>
 
   <section class="panel">
-    <h3>💾 데이터 관리</h3>
+    <h3>데이터 관리</h3>
     <div class="toolbar">
       <button class="btn" data-action="export-json">JSON 백업</button>
       <button class="btn" data-action="export-csv">과제 CSV 내보내기</button>
