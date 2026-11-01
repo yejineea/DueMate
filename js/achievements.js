@@ -33,14 +33,15 @@ function badges(map, total, weekGoalHit) {
   const streak = bestStreak(map);
   const bestDay = Math.max(0, ...Object.values(map));
   return [
-    ['🌱', '첫 토마토', '처음으로 집중 1회 완료', total >= 1],
-    ['🍅', '토마토 10개', '누적 10개', total >= 10],
-    ['🧺', '토마토 50개', '누적 50개', total >= 50],
-    ['🏆', '토마토 100개', '누적 100개', total >= 100],
-    ['🔥', '3일 연속', '3일 연속 집중', streak >= 3],
-    ['⚡', '7일 연속', '7일 연속 집중', streak >= 7],
-    ['💪', '하루 8개', '하루에 8개 (약 4시간 집중)', bestDay >= 8],
-    ['🎯', '주간 목표 달성', '이번 주 목표 달성', weekGoalHit],
+    // [원 안 글자, 색(red|green), 이름, 설명, 달성]
+    ['1', 'red', '첫 토마토', '처음으로 집중 1회 완료', total >= 1],
+    ['10', 'red', '토마토 10개', '누적 10개', total >= 10],
+    ['50', 'red', '토마토 50개', '누적 50개', total >= 50],
+    ['100', 'red', '토마토 100개', '누적 100개', total >= 100],
+    ['3일', 'green', '3일 연속', '3일 연속 집중', streak >= 3],
+    ['7일', 'green', '7일 연속', '7일 연속 집중', streak >= 7],
+    ['8', 'red', '하루 8개', '하루에 8개 (약 4시간 집중)', bestDay >= 8],
+    ['목표', 'green', '주간 목표 달성', '이번 주 목표 달성', weekGoalHit],
   ];
 }
 
@@ -116,7 +117,7 @@ function renderAchievements() {
 
   <section class="panel">
     <h3>배지</h3>
-    <div class="badges">${badges(map, total, thisWeek >= goal).map(([icon, name, desc, on]) => `
-      <div class="badge-card ${on ? 'on' : ''}" title="${esc(desc)}"><div class="bi">${icon}</div><b>${name}</b><span class="muted small">${desc}</span></div>`).join('')}</div>
+    <div class="badges">${badges(map, total, thisWeek >= goal).map(([mark, color, name, desc, on]) => `
+      <div class="badge-card ${on ? 'on' : ''}" title="${esc(desc)}"><div class="bi ${color}">${mark}</div><b>${name}</b><span class="muted small">${desc}</span></div>`).join('')}</div>
   </section>`;
 }
