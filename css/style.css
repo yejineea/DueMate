@@ -387,3 +387,12 @@ main[data-current="pomodoro"] { max-width: 1320px; }
 .target-box input { width: 64px; }
 .log-add { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
 .log-add .muted { margin-right: 4px; }
+
+/* 타이머 호 끝의 토마토 (파비콘과 같은 모양) */
+.ring-head { transition: transform 1s linear; }
+.rh-edge { fill: var(--card); }
+.rh-body { fill: #e5484d; }
+.rh-shine { fill: #fff; opacity: .4; }
+.rh-leaf { fill: #7cb342; }
+.rh-stem { stroke: #558b2f; stroke-width: 2.4; stroke-linecap: round; }
+.phase-idle .ring-head { opacity: .9; }

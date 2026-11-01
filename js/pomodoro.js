@@ -178,6 +178,17 @@ function stopPomodoro(id) {
 
 const RING_R = 118, RING_C = 2 * Math.PI * RING_R, OUTER_R = 134, OUTER_C = 2 * Math.PI * OUTER_R;
 
+// 빨간 시간 호의 끝(지금 위치)에 붙는 토마토 (파비콘과 같은 모양). 지난 비율만큼 원을 따라 돈다.
+// svg 전체가 -90° 돌아가 있으므로 토마토는 +90° 돌려 똑바로 세운다.
+function ringHeadTransform(left, dur) {
+  const a = 2 * Math.PI * (1 - left / dur);
+  return `translate(${(140 + RING_R * Math.cos(a)).toFixed(2)} ${(140 + RING_R * Math.sin(a)).toFixed(2)}) rotate(90)`;
+}
+const RING_HEAD = `<circle r="15" class="rh-edge"></circle><circle cy="2" r="12" class="rh-body"></circle>
+  <ellipse cx="-5" cy="-2" rx="3.2" ry="2" class="rh-shine" transform="rotate(-30 -5 -2)"></ellipse>
+  <path d="M0 -9 L-5 -12 L-2 -8 L-7 -8 L-2 -6.5 L0 -4 L2 -6.5 L7 -8 L2 -8 L5 -12 Z" class="rh-leaf"></path>
+  <path d="M0 -9 V-14" class="rh-stem"></path>`;
+
 // 과제 슬라이드 가운데의 큰 원형 타이머. 버튼은 원 안에 있고, 바깥 얇은 링은 그 과제의 '기록 ÷ 예상' 진행률이다.
 function pomoRing(taskId) {
   const pm = state.settings.pomodoro;
@@ -208,6 +219,7 @@ function pomoRing(taskId) {
           <circle class="ring-outer" cx="140" cy="140" r="${OUTER_R}" stroke-dasharray="${OUTER_C}" stroke-dashoffset="${OUTER_C * (1 - prog)}"></circle>
           <circle class="ring-bg" cx="140" cy="140" r="${RING_R}"></circle>
           <circle class="ring-fg" data-ring-fg="${taskId}" cx="140" cy="140" r="${RING_R}" stroke-dasharray="${RING_C}" stroke-dashoffset="${RING_C * (left / dur)}"></circle>
+          <g class="ring-head" data-ring-head="${taskId}" transform="${ringHeadTransform(left, dur)}">${RING_HEAD}</g>
         </svg>
         <div class="pomo-center">
           <span class="pomo-label">${label}</span>
@@ -237,6 +249,8 @@ function updateTimerClock() {
   if (el) el.textContent = text;
   const ring = $(`[data-ring-fg="${tm.taskId}"]`);
   if (ring) ring.style.strokeDashoffset = RING_C * (left / tm.dur);
+  const head = $(`[data-ring-head="${tm.taskId}"]`);
+  if (head) head.setAttribute('transform', ringHeadTransform(left, tm.dur));
   const chip = $('#pomo-chip');
   if (chip) { chip.textContent = `🍅 ${text} ${PHASES[tm.phase]}`; chip.className = `pomo-chip phase-${tm.phase}`; }
 }

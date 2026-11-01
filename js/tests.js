@@ -694,6 +694,12 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     ok($(cur('.pomo.phase-focus.running')), '원형 타이머가 집중 중');
     ok(!document.title.includes('집중'), `탭 제목은 그대로: ${document.title}`);
   });
+  test('빨간 시간 호 끝에 토마토가 있고, 시간이 지나면 원을 따라 움직인다', () => {
+    const head = $(cur(`[data-ring-head]`));
+    ok(head && head.querySelector('.rh-body'), '토마토 표시');
+    eq(ringHeadTransform(25 * MIN, 25 * MIN), 'translate(258.00 140.00) rotate(90)', '시작 위치 (돌리기 전 3시 = 화면의 12시)');
+    ok(ringHeadTransform(12.5 * MIN, 25 * MIN).startsWith('translate(22.00 140.00)'), '절반 지나면 반대편');
+  });
   test('원 안의 버튼으로 일시정지 → 재개 → 중지할 수 있다', () => {
     click(cur('.pomo-ring [data-action="pomo-pause"]'));
     eq(state.timer.endsAt, null);
