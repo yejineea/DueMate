@@ -385,3 +385,5 @@ main[data-current="pomodoro"] { max-width: 1320px; }
 .step-text { flex: 1; display: flex; flex-direction: column; }
 .target-box { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .target-box input { width: 64px; }
+.log-add { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+.log-add .muted { margin-right: 4px; }

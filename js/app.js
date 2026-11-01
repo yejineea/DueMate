@@ -41,6 +41,8 @@ const actions = {
   'close-modal': () => closeModal(),
   'onboard-skip': () => { state.onboardDone = true; save(); render(); },
   'calib-reset': (el) => resetCalibration(el.dataset.type),
+  'log-add': (el) => { const t = getTask(el.dataset.id); addManualLog(t, Number(el.dataset.min) * MIN); save(); render(); toast(`${el.dataset.min}분을 기록했습니다`); },
+  'log-del': (el) => { const t = getTask(el.dataset.id); t.logs = t.logs.filter((l) => l.id !== el.dataset.lid); save(); render(); },
   'confirm-ok': () => { const fn = confirmFn; closeModal(); if (fn) fn(); },
   'pomo-start': (el) => startPomodoro(el.dataset.id),
   'pomo-pause': () => pausePomodoro(),
@@ -80,6 +82,7 @@ const forms = {
   'add-sub': (f) => addSub(f.dataset.id, new FormData(f).get('text')),
   'add-grade': (f) => addGrade(f),
   'add-schedule': (f) => addSchedule(f),
+  'actual-time': (f) => saveActual(f),
   'edit-sub': (f) => saveSub(f),
   'add-subject': (f) => addSubject(new FormData(f).get('subject')),
 };

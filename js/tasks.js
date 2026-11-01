@@ -116,8 +116,11 @@ function taskDetail(t) {
       <p class="small muted">중요도 ${'★'.repeat(t.importance)}${'☆'.repeat(5 - t.importance)} · 난이도 ${t.difficulty}/5 · ${esc(t.type)}</p>
       <h4>설명</h4><p class="pre small">${esc(t.desc) || '—'}</p>
       <h4>메모</h4><p class="pre small">${esc(t.memo) || '—'}</p>
-      <h4>작업 기록</h4>
-      ${t.logs.length ? `<ul class="logs">${t.logs.slice(-8).reverse().map((l) => `<li>${l.date} · ${fmtDur(l.ms)}${l.pomo ? ' 🍅' : ''}</li>`).join('')}</ul>` : '<p class="muted small">기록 없음 (🍅 시작 버튼으로 집중하면 자동 기록)</p>'}
+      <h4>작업 기록 <span class="muted small">합계 ${hours(actualMs(t))}h</span></h4>
+      ${t.logs.length ? `<ul class="logs">${t.logs.slice(-8).reverse().map((l) => `<li>${l.date} · ${fmtDur(l.ms)}${l.pomo ? ' 🍅' : ''}${l.manual
+        ? ` <span class="muted">직접</span> <button class="btn xs" data-action="log-del" data-id="${t.id}" data-lid="${l.id}" title="이 기록 지우기">✕</button>` : ''}</li>`).join('')}</ul>`
+        : '<p class="muted small">기록 없음</p>'}
+      <div class="log-add"><span class="small muted">타이머 없이 한 시간</span>${[15, 30, 60].map((m) => `<button class="btn xs" data-action="log-add" data-id="${t.id}" data-min="${m}">+${m < 60 ? `${m}분` : '1시간'}</button>`).join('')}</div>
     </div>
   </div>`;
 }
@@ -255,11 +258,46 @@ function spawnNext(t) {
   return n;
 }
 
+// 타이머 밖에서 한 작업 시간을 직접 기록 (🍅 개수는 늘지 않음). 보정·남은 작업량·리포트에 똑같이 반영된다
+function addManualLog(t, ms) {
+  if (!(ms >= MIN)) return;
+  t.logs.push({ id: uid(), date: ymd(new Date()), ms: Math.round(ms), manual: 1 });
+}
+
+// 기록이 예상의 절반도 안 되는 과제를 완료하면 실제로 걸린 시간을 묻는다 (타이머 밖 작업 때문에 보정이 틀어지지 않게)
+function needsActualCheck(t) {
+  return t.estHours > 0 && actualMs(t) / HOUR < t.estHours * 0.5;
+}
+
+function askActual(t) {
+  const rec = hours(actualMs(t));
+  openModal(`<h3>실제로 얼마나 걸렸나요?</h3>
+    <p class="muted small">'${esc(t.title)}' · 기록 ${rec}h / 예상 ${t.estHours}h · 예상 시간 보정에 쓰여요</p>
+    <form class="form" data-form="actual-time" data-id="${t.id}">
+      <label>실제 걸린 시간 (시간)<input type="number" name="h" min="0" max="300" step="0.1" value="${Math.max(rec, t.estHours)}" required></label>
+      <div class="modal-actions">
+        <button type="button" class="btn" data-action="close-modal">기록대로 ${rec}h</button>
+        <button class="btn primary">저장</button>
+      </div>
+    </form>`);
+}
+
+function saveActual(form) {
+  const t = getTask(form.dataset.id);
+  const h = Number(new FormData(form).get('h'));
+  if (!t || !(h >= 0)) return closeModal();
+  if (h * HOUR < actualMs(t)) return toast(`기록된 ${hours(actualMs(t))}h보다 적게 입력할 수 없습니다`);
+  addManualLog(t, h * HOUR - actualMs(t));
+  save(); closeModal(); render();
+  toast(`실제 ${h}h로 기록했습니다`);
+}
+
 function finishTask(t, revert) {
   t.done = true; t.doneAt = Date.now();
   stopTimerOf(t.id);
   const n = spawnNext(t);
   save(); render();
+  if (needsActualCheck(t)) askActual(t);
   const msg = n ? `'${t.title}' 완료 · 다음 회차 ${fmtDue(n.due)} 추가` : `'${t.title}' 완료`;
   toast(msg, () => {
     t.done = false; t.doneAt = null;

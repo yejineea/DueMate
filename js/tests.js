@@ -956,6 +956,35 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     const box = $('[data-setting="calibrate"]'); box.checked = false; box.dispatchEvent(new Event('change', { bubbles: true }));
     ok(calibration().off && $('.cal-box').textContent.includes('꺼짐'), '보정 꺼짐');
   });
+  test('기록이 예상의 절반도 안 되는 과제를 완료하면 실제 시간을 묻고, 입력한 만큼 기록을 채운다', () => {
+    show('todo');
+    const t = state.tasks.find((x) => !x.done && actualMs(x) / HOUR < x.estHours * 0.5);
+    toggleDone(t.id);
+    const f = $('form[data-form="actual-time"]');
+    ok(f, '실제 시간 질문');
+    f.elements.h.value = '3';
+    f.requestSubmit();
+    near(actualMs(t) / HOUR, 3, '', 0.01);
+    ok(t.logs.some((l) => l.manual) && pomoCount(t) === pomoCount(t), '직접 기록 추가 (🍅 수는 그대로)');
+  });
+  test('기록이 충분한 과제는 완료해도 묻지 않는다', () => {
+    show('todo');
+    const t = state.tasks.find((x) => !x.done);
+    t.logs.push({ date: ymd(new Date()), ms: t.estHours * HOUR });
+    closeModal(); toggleDone(t.id);
+    ok(!$('form[data-form="actual-time"]') || $('#modal').classList.contains('hidden'), '질문 없음');
+  });
+  test('과제 상세에서 +30분으로 직접 기록을 더하고 ✕로 지울 수 있다', () => {
+    show('todo');
+    const t = state.tasks.find((x) => !x.done);
+    taskUI.open.add(t.id); render();
+    const before = actualMs(t);
+    click(`[data-action="log-add"][data-id="${t.id}"][data-min="30"]`);
+    eq(actualMs(t) - before, 30 * MIN);
+    click(`[data-action="log-del"][data-id="${t.id}"]`);
+    eq(actualMs(t), before);
+    taskUI.open.delete(t.id);
+  });
   test('추천 이유는 문장이 아니라 태그로 보인다', () => {
     show('pomodoro');
     ok($$(cur('.tags .tag')).length >= 2, '태그 표시');
