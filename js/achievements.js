@@ -31,6 +31,24 @@ function bestStreak(map) {
 
 // 자라는 단계: 주간 목표 대비 이번 주 🍅 비율
 const STAGES = ['씨앗', '새싹', '줄기', '꽃봉오리', '초록 토마토', '빨간 토마토'];
+const STAGE_RULE = ['0개', '1개~', '25%~', '50%~', '75%~', '100%'];
+const TALK = ['물 좀 주세요… 🍅 하나만요', '싹이 났어요! 조금만 더', '쑥쑥 크는 중이에요', '곧 꽃이 펴요!', '거의 다 익었어요!', '빨갛게 익었어요! 최고예요'];
+
+// 단계가 높을수록 웃는 토마토 얼굴 (0 울상 → 5 활짝)
+function tomatoFace(stage) {
+  const curve = [-7, -5, -1, 3, 6, 9][stage];           // 입꼬리: 음수면 처진 입
+  const eyeY = stage >= 4 ? 'M17 27 q4 -4 8 0 M35 27 q4 -4 8 0' : '';  // 기쁘면 웃는 눈
+  const eyes = eyeY ? `<path class="tf-line" d="${eyeY}"></path>` : '<circle class="tf-eye" cx="21" cy="27" r="2.6"></circle><circle class="tf-eye" cx="39" cy="27" r="2.6"></circle>';
+  const tear = stage === 0 ? '<path class="tf-tear" d="M41 31 q-2 4 0 6 q2 -2 0 -6"></path>' : '';
+  const brow = stage <= 1 ? '<path class="tf-line" d="M16 21 l8 2 M44 21 l-8 2"></path>' : '';
+  const blush = stage >= 3 ? '<ellipse class="tf-blush" cx="15" cy="35" rx="4" ry="2.5"></ellipse><ellipse class="tf-blush" cx="45" cy="35" rx="4" ry="2.5"></ellipse>' : '';
+  return `<svg class="tomato-face" viewBox="0 0 60 62" aria-hidden="true">
+    <circle class="tf-body" cx="30" cy="34" r="26"></circle>
+    <path class="tf-leaf" d="M30 10 L20 4 L26 12 L16 12 L26 15 L30 20 L34 15 L44 12 L34 12 L40 4 Z"></path>
+    ${brow}${eyes}${tear}${blush}
+    <path class="tf-line" d="M22 ${40 - Math.min(0, curve) / 2} q8 ${curve} 16 0"></path>
+  </svg>`;
+}
 function plantStage(count, goal) {
   const r = count / goal;
   return count === 0 ? 0 : r < 0.25 ? 1 : r < 0.5 ? 2 : r < 0.75 ? 3 : r < 1 ? 4 : 5;
@@ -115,8 +133,13 @@ function renderAchievements() {
         <span class="spacer"></span>
         <span class="muted small" title="${pm.focus}분 집중 + ${pm.short}분 휴식을 끝까지 마치면 🍅 1개">🍅 = ${pm.focus}분 집중 완료</span>
       </div>
-      ${plantSvg(thisWeek, goal)}
+      <div class="plant-wrap">
+        ${plantSvg(thisWeek, goal)}
+        <div class="talk">${tomatoFace(stage)}<div class="bubble">${TALK[stage]}</div></div>
+      </div>
       <div class="plant-stage"><b>${STAGES[stage]}</b>${stage < 5 ? ` · 다음 단계까지 🍅 ${Math.max(1, nextAt - thisWeek)}개` : ' · 수확 완료! 🎉'}</div>
+      <div class="stage-rule">${STAGES.map((n, i) => `<span class="${i === stage ? 'on' : i < stage ? 'past' : ''}">${n}<small>${STAGE_RULE[i]}</small></span>`).join('')}</div>
+      <div class="muted small">기준: 주간 목표 대비 이번 주 🍅</div>
     </div>
     <div class="panel week-goal">
       <div class="toolbar" style="margin-bottom:6px">

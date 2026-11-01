@@ -75,7 +75,7 @@ function taskCard(t) {
         </div>
         <div class="task-meta">
           ${esc(t.subject)} · ${fmtDue(t.due)} · <b class="${overdue ? 'red' : urgent ? 'orange' : ''}">${t.done ? '완료' : remainText(t.due)}</b>
-          <span class="meta-sub">· 진행 ${p}% · 기록 ${hours(actualMs(t))}h / 예상 ${t.estHours}h${t.estAuto && !t.done ? '(자동)' : ''}${pomoCount(t) ? ` · 🍅${pomoCount(t)}` : ''}</span>
+          <span class="meta-sub">· 진행 ${p}% · 기록 ${hours(actualMs(t))}h / 예상 ${t.estHours}h${t.estAuto && !t.done ? '(자동)' : ''} · 🍅 ${pomoCount(t)}</span>
         </div>
         <div class="bar"><span style="width:${p}%"></span></div>
       </div>

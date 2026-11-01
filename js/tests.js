@@ -283,6 +283,11 @@ describe('토마토 키우기', () => {
     eq([0, 1, 5, 10, 15, 19, 20, 30].map((n) => STAGES[plantStage(n, 20)]),
       ['씨앗', '새싹', '줄기', '꽃봉오리', '초록 토마토', '초록 토마토', '빨간 토마토', '빨간 토마토']);
   });
+  test('토마토 표정은 단계가 높을수록 웃는다 (0단계 눈물, 5단계 볼터치)', () => {
+    ok(tomatoFace(0).includes('tf-tear') && !tomatoFace(0).includes('tf-blush'), '0단계 울상');
+    ok(tomatoFace(5).includes('tf-blush') && !tomatoFace(5).includes('tf-tear'), '5단계 활짝');
+    eq(TALK.length, 6); eq(STAGE_RULE.length, 6);
+  });
   test('단계마다 화분 그림이 달라진다 (열매 수·색)', () => {
     ok(!plantSvg(0, 20).includes('pl-stem'), '씨앗은 줄기 없음');
     ok(plantSvg(12, 20).includes('pl-bud'), '꽃봉오리');
@@ -721,8 +726,11 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     show('pomodoro');
     const id = $('.plan-slot [data-action="plan-inc"]').dataset.id;
     const before = planToday().items.find((it) => it.t.id === id).pomos;
+    // 저녁 늦게는 🍅가 1개뿐일 수 있으므로 + 다음 − 순서로 (시간대와 무관하게)
+    click(`.plan-slot [data-action="plan-inc"][data-id="${id}"]`);
+    ok((planToday().items.find((it) => it.t.id === id)?.pomos ?? 0) >= before, '+ 반영');
     click(`.plan-slot [data-action="plan-dec"][data-id="${id}"]`);
-    eq(planToday().items.find((it) => it.t.id === id)?.pomos ?? 0, before - 1);
+    eq(planToday().items.find((it) => it.t.id === id)?.pomos ?? 0, before);
     ok($('.plan-mode.edited'), '직접 수정됨 표시');
     click(`.plan-slot [data-action="plan-exclude"][data-id="${id}"]`);
     ok($(`[data-action="plan-restore"][data-id="${id}"]`), '제외 목록에 표시');
