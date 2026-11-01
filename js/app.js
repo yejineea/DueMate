@@ -39,6 +39,7 @@ const actions = {
   'del-sub': (el) => delSub(el.dataset.id, el.dataset.sid),
   'fill-template': () => fillTemplate(),
   'close-modal': () => closeModal(),
+  'onboard-skip': () => { state.onboardDone = true; save(); render(); },
   'confirm-ok': () => { const fn = confirmFn; closeModal(); if (fn) fn(); },
   'pomo-start': (el) => startPomodoro(el.dataset.id),
   'pomo-pause': () => pausePomodoro(),

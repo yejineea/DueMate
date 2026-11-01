@@ -183,17 +183,33 @@ function planPanel(tp, recs) {
     <p class="muted small" style="margin-bottom:0">🍅 = ${pm.focus}분 집중 + ${pm.short}분 휴식 · 바꾼 개수는 고정, 나머지 자동 · 수정은 오늘만</p></section>`;
 }
 
+// 처음 사용 안내: ① 일정 → ② 과제 → ③ 첫 🍅. 모두 끝내거나 닫으면 다시 보이지 않는다
+function onboarding() {
+  if (state.onboardDone) return '';
+  const steps = [
+    ['일정 등록', '수업·알바를 넣으면 공부 시간이 정확해져요', state.schedule.length > 0, '<button class="btn sm" data-tab="settings">일정 넣기</button>'],
+    ['과제 추가', '마감·유형만 넣으면 계획을 짜요', state.tasks.length > 0, '<button class="btn sm primary" data-action="new-task">+ 과제</button>'],
+    ['첫 🍅 집중', '25분 집중을 끝까지 마쳐 보세요', state.tasks.some((t) => pomoCount(t) > 0), ''],
+  ];
+  if (steps.every((x) => x[2])) return '';
+  return `<section class="panel onboard">
+    <div class="toolbar" style="margin-bottom:8px"><h3 style="margin:0">시작하기</h3><span class="muted small">${steps.filter((x) => x[2]).length}/3</span>
+      <span class="spacer"></span><button class="btn xs" data-action="onboard-skip">닫기</button></div>
+    <ol class="steps">${steps.map(([name, desc, done, btn], i) => `
+      <li class="${done ? 'done' : ''}"><span class="step-no">${done ? '✓' : i + 1}</span>
+        <span class="step-text"><b>${name}</b><span class="muted small">${desc}</span></span>${done ? '' : btn}</li>`).join('')}</ol>
+    ${state.tasks.length ? '' : '<button class="btn xs" data-action="load-sample">샘플 데이터로 먼저 둘러보기</button>'}
+  </section>`;
+}
+
 // 뽀모도로 탭: 왼쪽 과제 슬라이드(가운데 타이머) | 오른쪽 오늘 계획 → 핵심 경고 → 7일 내 마감 → 뽀모도로 설정
 function renderFocus() {
   const all = state.tasks;
   const recs = recommend();
   if (!recs.length) {
     slideIds = [];
-    return `<section class="panel hero"><div class="hero-label">${all.length ? '모두 끝냈습니다' : '시작하기'}</div>
-      <h2>${all.length ? '남은 과제 없음 🎉' : '과제를 추가해 보세요'}</h2>
-      <p class="muted">마감·유형만 넣으면 오늘 계획을 짜 드려요</p>
-      <div class="toolbar"><button class="btn primary" data-action="new-task">+ 과제 추가</button>
-      ${all.length ? '' : '<button class="btn" data-action="load-sample">샘플 데이터로 체험</button>'}</div></section>
+    return `${onboarding()}${all.length ? `<section class="panel hero"><div class="hero-label">모두 끝냈습니다</div>
+      <h2>남은 과제 없음 🎉</h2><div class="toolbar"><button class="btn primary" data-action="new-task">+ 과제 추가</button></div></section>` : ''}
       ${pomodoroSection()}`;
   }
   const now = new Date();
@@ -221,6 +237,7 @@ function renderFocus() {
   <div class="focus-layout">
     <div class="focus-main">${carousel(slides, tp.slots.length ? tp.slots[0].t : null)}</div>
     <div class="focus-side">
+      ${onboarding()}
       ${planPanel(tp, recs)}
       ${shown.length ? `<section class="alerts">${shown.map((a) => `<div class="alert ${a.type}">${a.msg}</div>`).join('')}
         ${alerts.length > shown.length ? `<div class="muted small">외 경고 ${alerts.length - shown.length}건 · 리포트 탭에서 주간 작업량 확인</div>` : ''}</section>` : ''}

@@ -874,6 +874,16 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     ok(state.tasks.length > 0, '취소하면 그대로');
     window.confirm = () => true;
   });
+  test('처음 사용자는 시작하기 3단계를 보고, 단계를 마치면 체크되며, 닫으면 다시 안 보인다', () => {
+    state = defaultState(); currentTab = 'pomodoro'; render();
+    ok($('.onboard') && $$('.steps li.done').length === 0, '0/3');
+    state.schedule.push({ id: 's', repeat: 'weekly', day: 0, start: '09:00', end: '10:00', label: '수업' }); render();
+    eq($$('.steps li.done').length, 1);
+    click('[data-action="onboard-skip"]');
+    ok(!$('.onboard') && state.onboardDone, '닫힘');
+    show('pomodoro');
+    ok(!$('.onboard'), '샘플(모두 완료)에서는 안 보임');
+  });
   test('추천 이유는 문장이 아니라 태그로 보인다', () => {
     show('pomodoro');
     ok($$(cur('.tags .tag')).length >= 2, '태그 표시');
