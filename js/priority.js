@@ -40,7 +40,7 @@ function recommend(now = Date.now()) {
     .sort((a, b) => b.p.score - a.p.score || new Date(a.t.due) - new Date(b.t.due));
 }
 
-// 주간 과부하 분석: 과제 개수가 아니라 '남은 예상 작업 시간'으로 판단
+// 7일 과부하 분석: 과제 개수가 아니라 '남은 예상 작업 시간'으로 판단. 가용 시간은 지금 이후만 센다.
 function weekLoad(weekStart, now = Date.now()) {
   const end = addDays(weekStart, 7);
   const days = [...Array(7)].map((_, i) => {
@@ -66,6 +66,6 @@ function weekLoad(weekStart, now = Date.now()) {
     d.cumAvail = availableUntil(addDays(d.date, 1), now);
     d.crunch = d.date >= today && d.load > 0 && cum > d.cumAvail;
   });
-  const avail = weeklyHours(weekStart);
+  const avail = +availableBetween(Math.max(weekStart.getTime(), now), end.getTime()).toFixed(1);
   return { days, total, avail, over: total > avail };
 }

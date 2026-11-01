@@ -1,4 +1,4 @@
-const taskUI = { subject: 'all', status: 'all', sort: 'due', open: new Set() };
+const taskUI = { subject: 'all', status: 'todo', sort: 'priority', open: new Set() };
 
 const TEMPLATES = {
   발표: ['자료 조사', '자료 정리', 'PPT 제작', '발표 연습', '제출'],
@@ -14,7 +14,7 @@ function sortTasks(list, key) {
     due: byDue,
     importance: (a, b) => b.importance - a.importance || byDue(a, b),
     progress: (a, b) => progress(a) - progress(b) || byDue(a, b),
-    priority: (a, b) => priorityOf(b).score - priorityOf(a).score,
+    priority: (a, b) => a.done - b.done || priorityOf(b).score - priorityOf(a).score || byDue(a, b),
   };
   return [...list].sort(sorters[key] || byDue);
 }
@@ -37,10 +37,10 @@ function renderTasks() {
         ${opt('all', '전체 상태', taskUI.status)}${opt('todo', '미완료', taskUI.status)}${opt('done', '완료', taskUI.status)}${opt('overdue', '마감 지남', taskUI.status)}
       </select>
       <select data-filter="sort">
-        ${opt('due', '마감일순', taskUI.sort)}${opt('importance', '중요도순', taskUI.sort)}${opt('progress', '진행률 낮은순', taskUI.sort)}${opt('priority', '추천 우선순위순', taskUI.sort)}
+        ${opt('priority', '추천 우선순위순', taskUI.sort)}${opt('due', '마감일순', taskUI.sort)}${opt('importance', '중요도순', taskUI.sort)}${opt('progress', '진행률 낮은순', taskUI.sort)}
       </select>
       <span class="spacer"></span>
-      <span class="muted small">${list.length}개 · 제목을 클릭하면 하위 작업이 열립니다</span>
+      <span class="muted small">${list.length}개 · 제목을 누르면 하위 작업이 열립니다</span>
     </div>
     <div class="task-list">${list.length ? list.map(taskCard).join('') : '<p class="empty">조건에 맞는 과제가 없습니다.</p>'}</div>
   </section>`;
@@ -61,16 +61,14 @@ function taskCard(t) {
           ${t.done ? '' : `<span class="badge lv-${pr.level}">P${pr.score}</span>`}
         </div>
         <div class="task-meta">
-          ${esc(t.subject)} · ${fmtDue(t.due)} ·
-          <b class="${overdue ? 'red' : urgent ? 'orange' : ''}">${t.done ? '완료' : remainText(t.due)}</b> ·
-          예상 ${t.estHours}h / 실제 ${hours(actualMs(t))}h · 중요도 ${'★'.repeat(t.importance)} · 난이도 ${t.difficulty} · 진행률 ${p}%
+          ${esc(t.subject)} · ${fmtDue(t.due)} · <b class="${overdue ? 'red' : urgent ? 'orange' : ''}">${t.done ? '완료' : remainText(t.due)}</b>
+          <span class="meta-sub">· 진행 ${p}% · 기록 ${hours(actualMs(t))}h / 예상 ${t.estHours}h${pomoCount(t) ? ` · 🍅${pomoCount(t)}` : ''}</span>
         </div>
         <div class="bar"><span style="width:${p}%"></span></div>
       </div>
       <div class="task-actions">
-        <button class="btn sm" data-action="pomo-start" data-id="${t.id}" ${t.done ? 'disabled' : ''} title="뽀모도로 시작">🍅</button>
+        ${t.done ? '' : `<button class="btn sm" data-action="pomo-start" data-id="${t.id}" title="뽀모도로 시작">🍅 시작</button>`}
         <button class="btn sm" data-action="edit-task" data-id="${t.id}">수정</button>
-        <button class="btn sm danger" data-action="delete-task" data-id="${t.id}">삭제</button>
       </div>
     </div>
     ${taskUI.open.has(t.id) ? taskDetail(t) : ''}
@@ -97,10 +95,11 @@ function taskDetail(t) {
     </div>
     <div>
       ${t.done ? '' : `<h4>추천 이유</h4><p class="small">${esc(priorityText(t))}</p>`}
+      <p class="small muted">중요도 ${'★'.repeat(t.importance)}${'☆'.repeat(5 - t.importance)} · 난이도 ${t.difficulty}/5 · ${esc(t.type)}</p>
       <h4>설명</h4><p class="pre small">${esc(t.desc) || '—'}</p>
       <h4>메모</h4><p class="pre small">${esc(t.memo) || '—'}</p>
       <h4>작업 기록</h4>
-      ${t.logs.length ? `<ul class="logs">${t.logs.map((l) => `<li>${l.date} · ${fmtDur(l.ms)}</li>`).join('')}</ul>` : '<p class="muted small">기록 없음 (⏱ 버튼으로 측정)</p>'}
+      ${t.logs.length ? `<ul class="logs">${t.logs.slice(-8).reverse().map((l) => `<li>${l.date} · ${fmtDur(l.ms)}${l.pomo ? ' 🍅' : ''}</li>`).join('')}</ul>` : '<p class="muted small">기록 없음 (🍅 시작 버튼으로 집중하면 자동 기록)</p>'}
     </div>
   </div>`;
 }
@@ -139,6 +138,7 @@ function openTaskForm(id, date) {
           <button type="button" class="btn xs" data-action="fill-template">유형별 템플릿 채우기</button></div>
         <textarea name="subs" rows="4" placeholder="예) 자료 조사&#10;PPT 제작&#10;발표 연습"></textarea>`}
       <div class="modal-actions">
+        ${t ? `<button type="button" class="btn danger" data-action="delete-task" data-id="${t.id}" style="margin-right:auto">삭제</button>` : ''}
         <button type="button" class="btn" data-action="close-modal">취소</button>
         <button class="btn primary">저장</button>
       </div>
@@ -181,7 +181,7 @@ function deleteTask(id) {
   if (!t || !confirm(`'${t.title}' 과제를 삭제할까요?`)) return;
   if (state.timer && state.timer.taskId === id) state.timer = null;
   state.tasks = state.tasks.filter((x) => x.id !== id);
-  save(); render(); toast('삭제되었습니다');
+  save(); closeModal(); render(); toast('삭제되었습니다');
 }
 
 function toggleDone(id) {

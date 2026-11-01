@@ -61,7 +61,7 @@ input, select, textarea { font: inherit; color: var(--text); background: var(--b
 .badge { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 10px; background: var(--primary-weak); color: var(--primary); font-weight: 600; margin-left: 4px; vertical-align: middle; }
 .badge.lv-high { background: #fde2e2; color: var(--red); }
 .badge.lv-mid { background: #fff3d6; color: #b36b00; }
-.red { color: var(--red); } .orange { color: var(--orange); } .green { color: var(--green); }
+.red { color: var(--red); } .orange { color: var(--orange); } .green { color: var(--green); } .tomato { color: var(--tomato) !important; }
 .muted { color: var(--muted); } .small { font-size: 12px; }
 .pre { white-space: pre-wrap; margin: 0; }
 .empty { color: var(--muted); text-align: center; padding: 16px; }
@@ -152,3 +152,29 @@ input, select, textarea { font: inherit; color: var(--text); background: var(--b
 .sched { display: flex; flex-direction: column; gap: 6px; }
 .sched-row { display: flex; gap: 10px; align-items: center; }
 .sched-row > b { width: 20px; font-size: 13px; }
+
+.btn.lg { padding: 12px 20px; font-size: 16px; font-weight: 700; }
+.hero { border-left: 6px solid var(--primary); padding: 20px; }
+.hero.lv-high { border-left-color: var(--red); }
+.hero.lv-mid { border-left-color: var(--orange); }
+.hero.done { border-left-color: var(--green); }
+.hero h2 { margin: 4px 0 6px; font-size: 24px; }
+.hero-label { font-size: 13px; font-weight: 700; color: var(--muted); }
+.hero-main { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.hero-text { flex: 1; min-width: 260px; }
+.hero-why { margin: 10px 0 6px; font-size: 14px; }
+.hero-actions { display: flex; flex-direction: column; gap: 8px; min-width: 200px; }
+.slots { display: flex; flex-direction: column; }
+.slot { display: grid; grid-template-columns: 110px 1fr auto auto; gap: 12px; align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--line); font-size: 14px; }
+.slot:last-child { border-bottom: 0; }
+.slot.active { background: var(--primary-weak); border-radius: 8px; }
+.slot-time { font-variant-numeric: tabular-nums; font-weight: 700; }
+.slot-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slot-pomo { font-size: 13px; color: var(--tomato); font-weight: 700; }
+.mini li .btn { flex-shrink: 0; }
+@media (max-width: 760px) {
+  .slot { grid-template-columns: 90px 1fr auto; }
+  .slot .slot-pomo { display: none; }
+  .meta-sub { display: block; }
+  .hero-actions { width: 100%; }
+}

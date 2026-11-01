@@ -1,88 +1,114 @@
+// "오늘" 화면: 지금 할 일 1개 → 오늘의 시간대별 계획 → 핵심 경고 → 다음 순위·7일 내 마감
+// 통계 카드와 작업량 차트는 분석 탭으로 옮겨, 첫 화면에서는 결정과 실행에 필요한 것만 보여준다.
+
 function miniList(list) {
   if (!list.length) return '<p class="muted small">없음</p>';
   return `<ul class="mini">${list.map((t) => `
-    <li class="${t.done ? 'done' : ''}"><span>${esc(t.title)} <span class="muted small">${esc(t.subject)}</span></span>
-    <span class="small ${!t.done && new Date(t.due) < Date.now() ? 'red' : ''}">${t.done ? '완료' : remainText(t.due)}</span></li>`).join('')}</ul>`;
+    <li><span>${esc(t.title)} <span class="muted small">${esc(t.subject)}</span></span>
+    <span class="small ${new Date(t.due) < Date.now() ? 'red' : ''}">${remainText(t.due)}</span></li>`).join('')}</ul>`;
 }
 
-function buildAlerts(wk) {
+function buildAlerts(wk, skipId) {
   const now = Date.now();
   const todo = state.tasks.filter((t) => !t.done);
   const alerts = [];
   const overdue = todo.filter((t) => new Date(t.due) < now);
-  if (overdue.length) alerts.push({ type: 'danger', msg: `⛔ 마감이 지난 미완료 과제 ${overdue.length}개: ${overdue.map((t) => esc(t.title)).join(', ')}` });
-
-  todo.filter((t) => { const h = (new Date(t.due) - now) / 36e5; return h > 0 && h <= state.settings.alertHours; })
-    .forEach((t) => alerts.push({ type: 'warn', msg: `⏰ '${esc(t.title)}' 마감까지 ${remainText(t.due)} — 남은 작업 약 ${remainingWork(t).toFixed(1)}h` }));
-
+  if (overdue.length) alerts.push({ type: 'danger', msg: `마감이 지난 미완료 과제 ${overdue.length}개: ${overdue.map((t) => esc(t.title)).join(', ')}` });
   if (wk.over) {
-    alerts.push({ type: 'danger', msg: `⚠️ 과부하: 이번 주 예상 작업량은 ${wk.total.toFixed(1)}시간이며, 설정한 공부 가능 시간은 ${wk.avail}시간입니다. ${(wk.total - wk.avail).toFixed(1)}시간이 부족합니다.` });
+    alerts.push({ type: 'danger', msg: `앞으로 7일 안에 마감인 작업 ${wk.total.toFixed(1)}h가 공부 가능 시간 ${wk.avail}h보다 ${(wk.total - wk.avail).toFixed(1)}h 많습니다.` });
   }
   wk.days.filter((d) => d.crunch).forEach((d) => alerts.push({
     type: 'warn',
-    msg: `📌 ${fmtDay(d.date)}까지 마감 과제의 누적 작업 ${d.cumLoad.toFixed(1)}h가 그때까지의 공부 가능 시간 ${d.cumAvail.toFixed(1)}h를 초과합니다. 분산 필요: ${d.tasks.map((t) => esc(t.title)).join(', ')}`,
+    msg: `${fmtDay(d.date)}까지 마감 과제의 작업 ${d.cumLoad.toFixed(1)}h가 그때까지의 공부 가능 시간 ${d.cumAvail.toFixed(1)}h를 넘습니다: ${d.tasks.map((t) => esc(t.title)).join(', ')}`,
   }));
+  todo.filter((t) => { const h = (new Date(t.due) - now) / 36e5; return t.id !== skipId && h > 0 && h <= state.settings.alertHours; })
+    .forEach((t) => alerts.push({ type: 'warn', msg: `'${esc(t.title)}' 마감까지 ${remainText(t.due)} · 남은 작업 약 ${remainingWork(t).toFixed(1)}h` }));
   return alerts;
 }
 
-function weekChart(wk) {
-  const max = Math.max(1, ...wk.days.map((d) => Math.max(d.load, d.avail)));
-  return wk.days.map((d) => hRow(fmtDay(d.date), d.load, max, `${d.load.toFixed(1)}h / 가능 ${d.avail}h`, d.crunch)).join('')
-    + '<p class="muted small">막대: 그날 마감인 과제의 남은 예상 작업 시간 · 빨간색: 마감 전까지 시간이 부족한 날짜</p>';
-}
-
-function futureWeeks() {
-  const s = startOfWeek(new Date());
-  const rows = [0, 1, 2, 3].map((i) => weekLoad(addDays(s, 7 * i)));
-  const max = Math.max(1, ...rows.map((w) => Math.max(w.total, w.avail)));
-  return rows.map((w, i) => hRow(i === 0 ? '이번 주' : `${i}주 후`, w.total, max, `${w.total.toFixed(1)}h / ${w.avail}h`, w.over)).join('');
-}
-
-function renderDashboard() {
-  const now = new Date();
-  const all = state.tasks;
-  const todo = all.filter((t) => !t.done);
-  const done = all.filter((t) => t.done);
-  const todayDue = all.filter((t) => ymd(new Date(t.due)) === ymd(now));
-  const upcoming = todo.filter((t) => { const h = (new Date(t.due) - now) / 36e5; return h > 0 && h <= 168; })
-    .sort((a, b) => new Date(a.due) - new Date(b.due)).slice(0, 6);
-  const avgProg = all.length ? Math.round(all.reduce((a, t) => a + progress(t), 0) / all.length) : 0;
-  const recs = recommend().slice(0, 3);
-  const wk = weekLoad(startOfWeek(now));
-  const alerts = buildAlerts(wk);
-  const tp = planToday();
-  const focus = state.settings.pomodoro.focus;
-
-  if (!all.length) {
-    return `<section class="panel"><p class="empty">아직 등록된 과제가 없습니다.<br>
-      상단 <b>+ 과제 추가</b>를 누르거나, 설정 탭에서 <b>샘플 데이터</b>를 불러와 보세요.</p></section>`;
+function heroCard(rec) {
+  if (!rec) {
+    return `<section class="panel hero done"><div class="hero-label">지금 할 일</div>
+      <h2>남은 과제가 없습니다 🎉</h2><p class="muted">새 과제가 생기면 <b>+ 과제 추가</b>로 등록하세요.</p></section>`;
   }
+  const { t, p } = rec;
+  const tm = state.timer;
+  const active = tm && tm.taskId === t.id;
+  const next = t.subtasks.find((s) => !s.done);
+  const focus = state.settings.pomodoro.focus;
+  return `
+  <section class="panel hero lv-${p.level}">
+    <div class="hero-label">지금 할 일 <span class="badge lv-${p.level}">P${p.score}</span></div>
+    <div class="hero-main">
+      <div class="hero-text">
+        <h2>${esc(t.title)}</h2>
+        <div class="muted">${esc(t.subject)} · ${fmtDue(t.due)} · <b class="${p.hoursLeft <= 0 ? 'red' : p.hoursLeft <= 24 ? 'orange' : ''}">${remainText(t.due)}</b> · 남은 작업 약 ${p.work.toFixed(1)}h</div>
+        <p class="hero-why">${esc(priorityText(t))}</p>
+        ${next ? `<div class="small">다음 단계: <b>${esc(next.text)}</b></div>` : ''}
+      </div>
+      <div class="hero-actions">
+        ${active ? `<button class="btn lg" data-action="${tm.endsAt ? 'pomo-pause' : 'pomo-resume'}">${tm.endsAt ? '집중 중 · 일시정지' : '이어서 집중'}</button>`
+          : `<button class="btn primary lg" data-action="pomo-start" data-id="${t.id}">▶ ${focus}분 집중 시작</button>`}
+        <button class="btn" data-action="toggle-done" data-id="${t.id}">완료 처리</button>
+      </div>
+    </div>
+  </section>`;
+}
+
+function planPanel(tp) {
+  const pm = state.settings.pomodoro;
+  const doneToday = todayPomos();
+  const head = `
+    <div class="toolbar">
+      <h3 style="margin:0">오늘 계획</h3>
+      <span class="muted small">남은 공부 가능 ${(tp.capMin / 60).toFixed(1)}h (${hm(todayEnd())}까지 · 자동 계산) · 🍅 ${tp.used}개 배정 · 오늘 완료 ${doneToday}개</span>
+      <span class="spacer"></span>
+      <button class="btn xs" data-tab="settings">계산 기준</button>
+    </div>`;
+  const body = tp.slots.length
+    ? `<div class="slots">${tp.slots.map((s) => `
+      <div class="slot ${state.timer && state.timer.taskId === s.t.id ? 'active' : ''}">
+        <span class="slot-time">${hm(s.start)}–${hm(s.end)}</span>
+        <span class="slot-title">${esc(s.t.title)} <span class="muted small">${esc(s.t.subject)}</span></span>
+        <span class="slot-pomo" title="${pm.focus}분 집중 × ${s.pomos}">🍅×${s.pomos}</span>
+        <button class="btn xs" data-action="pomo-start" data-id="${s.t.id}">시작</button>
+      </div>`).join('')}</div>`
+    : `<p class="muted small">${tp.capMin < pm.focus ? '오늘 남은 공부 가능 시간이 없습니다. 내일 계획은 자정 이후 다시 계산됩니다.' : '배정할 작업이 없습니다.'}</p>`;
+  const short = tp.short.map((x) => `<div class="alert danger">'${esc(x.t.title)}' 오늘 마감까지 뽀모도로 ${x.missing}개(약 ${((x.missing * pm.focus) / 60).toFixed(1)}h)가 부족합니다. 범위를 줄이거나 다른 일정을 조정하세요.</div>`).join('');
+  return `<section class="panel">${head}${body}${short ? `<div class="alerts" style="margin-top:10px">${short}</div>` : ''}
+    <p class="muted small" style="margin-bottom:0">마감까지 고르게 나눴을 때 오늘 해야 할 몫을 먼저 배정하고, 남는 시간은 우선순위가 높은 과제에 더 줍니다.</p></section>`;
+}
+
+function renderToday() {
+  const all = state.tasks;
+  if (!all.length) {
+    return `<section class="panel hero"><div class="hero-label">시작하기</div>
+      <h2>과제를 등록하면 지금 할 일을 골라 드립니다</h2>
+      <p class="muted">마감일·예상 시간·중요도를 입력하면, 시간표를 뺀 실제 빈 시간에 맞춰 오늘의 뽀모도로 계획을 짭니다.</p>
+      <div class="toolbar"><button class="btn primary" data-action="new-task">+ 과제 추가</button>
+      <button class="btn" data-action="load-sample">샘플 데이터로 체험</button></div></section>`;
+  }
+  const now = new Date();
+  const recs = recommend();
+  const top = recs.find((r) => r.p.work > 0) || recs[0];
+  const rest = recs.filter((r) => r !== top).slice(0, 4);
+  const upcoming = all.filter((t) => { const h = (new Date(t.due) - now) / 36e5; return !t.done && h > 0 && h <= 168; })
+    .sort((a, b) => new Date(a.due) - new Date(b.due)).slice(0, 5);
+  const alerts = buildAlerts(weekLoad(startOfDay(now)), top && top.t.id);
+  const shown = alerts.slice(0, 3);
 
   return `
-  ${alerts.length ? `<section class="alerts">${alerts.map((a) => `<div class="alert ${a.type}">${a.msg}</div>`).join('')}</section>` : ''}
-  <section class="cards">
-    <div class="card stat"><div class="num">${avgProg}%</div><div>전체 과제 진행률</div><div class="bar"><span style="width:${avgProg}%"></span></div></div>
-    <div class="card stat"><div class="num">${todo.length}</div><div>미완료 과제</div></div>
-    <div class="card stat"><div class="num">${done.length}</div><div>완료 과제</div></div>
-    <div class="card stat"><div class="num ${wk.over ? 'red' : ''}">${wk.total.toFixed(1)}h</div><div>이번 주 작업량 / 가능 ${wk.avail}h</div></div>
-  </section>
+  ${heroCard(top)}
+  ${recs.length ? planPanel(planToday()) : ''}
+  ${shown.length ? `<section class="alerts">${shown.map((a) => `<div class="alert ${a.type}">${a.msg}</div>`).join('')}
+    ${alerts.length > shown.length ? `<div class="muted small">외 경고 ${alerts.length - shown.length}건 · 분석 탭에서 주간 작업량을 확인하세요</div>` : ''}</section>` : ''}
   <section class="grid2">
     <div class="panel">
-      <h3>🔥 우선 처리 추천</h3>
-      ${recs.length ? recs.map((r, i) => `
-        <div class="rec lv-${r.p.level}">
-          <b>${i + 1}. ${esc(r.t.title)}</b> <span class="badge lv-${r.p.level}">P${r.p.score}</span>
-          <span class="muted small"> ${esc(r.t.subject)} · ${remainText(r.t.due)}</span>
-          <p>${esc(priorityText(r.t))}</p>
-        </div>`).join('') : '<p class="empty">남은 과제가 없습니다 🎉</p>'}
-      <h3>🗓 오늘의 공부 계획 (남은 ${(tp.capMin / 60).toFixed(1)}h)</h3>
-      ${tp.items.length ? `<ul class="mini">${tp.items.map((x) => `<li><span>${esc(x.t.title)}</span><b>${((x.pomos * focus) / 60).toFixed(1)}h</b></li>`).join('')}</ul>` : '<p class="muted small">배정할 작업이 없습니다.</p>'}
+      <h3>다음 순위</h3>
+      ${rest.length ? `<ul class="mini">${rest.map(({ t, p }) => `
+        <li><span>${esc(t.title)} <span class="badge lv-${p.level}">P${p.score}</span> <span class="muted small">${esc(t.subject)} · ${remainText(t.due)}</span></span>
+        <button class="btn xs" data-action="pomo-start" data-id="${t.id}" title="뽀모도로 시작">🍅</button></li>`).join('')}</ul>` : '<p class="muted small">없음</p>'}
     </div>
-    <div class="panel">
-      <h3>📌 오늘 마감</h3>${miniList(todayDue)}
-      <h3>⏳ 다가오는 마감 (7일)</h3>${miniList(upcoming)}
-    </div>
-  </section>
-  <section class="panel"><h3>📅 이번 주 작업량 요약</h3>${weekChart(wk)}</section>
-  <section class="panel"><h3>📈 향후 4주 작업량 vs 공부 가능 시간</h3>${futureWeeks()}</section>`;
+    <div class="panel"><h3>7일 내 마감</h3>${miniList(upcoming)}</div>
+  </section>`;
 }

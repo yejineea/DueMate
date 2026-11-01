@@ -97,6 +97,20 @@ describe('우선순위', () => {
   });
 });
 
+describe('7일 과부하 분석', () => {
+  test('가용 시간은 지금 이후만 센다 (오늘 남은 4h + 6일 × 12h = 76h)', () => {
+    fresh({ maxStudy: 12 }, { schedule: [fixed(0, '09:00', '13:00')] });
+    near(weekLoad(MON, at(0, '18:30')).avail, 76);
+  });
+  test('7일 안에 마감인 작업이 가용 시간보다 많으면 과부하다', () => {
+    fresh({ maxStudy: 2 });
+    state.tasks = [task({ estHours: 20, due: `${ymd(addDays(MON, 2))}T23:59` })];
+    const w = weekLoad(MON, at(0, '09:00'));
+    ok(w.over, `작업 ${w.total} / 가용 ${w.avail}`);
+    ok(w.days.some((d) => d.crunch), '마감일까지 부족한 날 표시');
+  });
+});
+
 describe('오늘 계획', () => {
   function setup(estA) {
     fresh({ maxStudy: 12 }, { schedule: [fixed(0, '09:00', '13:00')] });
@@ -123,6 +137,14 @@ describe('오늘 계획', () => {
     const r = setup(10);
     eq(r.items.map((x) => [x.t.title, x.pomos]), [['A', 8]]);
     eq(r.short.map((x) => [x.t.title, x.missing]), [['A', 16]]);
+  });
+  test('뽀모도로가 진행 중이면 그 집중과 휴식이 끝난 뒤부터 계획한다', () => {
+    fresh({ maxStudy: 12 }, { schedule: [fixed(0, '09:00', '13:00')] });
+    state.tasks = [task({ title: 'A', estHours: 1, due: `${ymd(MON)}T23:00` })];
+    pomoBegin(state.tasks[0].id, at(0, '18:20')); // 18:45 집중 종료, 18:50 휴식 종료
+    const r = planToday(at(0, '18:30'));
+    eq(hm(r.slots[0].start), '18:50');
+    state.timer = null;
   });
 });
 

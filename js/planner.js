@@ -5,7 +5,10 @@
 function planToday(now = Date.now()) {
   const pm = state.settings.pomodoro;
   const end = todayEnd(now);
-  const capMin = availableBetween(now, end) * 60;
+  // 뽀모도로가 진행 중이면 그 단계(집중이면 뒤따르는 휴식까지)가 끝난 뒤부터 계획한다
+  const tm = state.timer;
+  const from = tm ? now + pomoLeft(now) + (tm.phase === 'focus' ? pm.short * MIN : 0) : now;
+  const capMin = availableBetween(from, end) * 60;
   let left = Math.floor(capMin / (pm.focus + pm.short));
   const total = left;
 
@@ -22,7 +25,7 @@ function planToday(now = Date.now()) {
   items.forEach((it) => { const n = Math.min(it.need - it.pomos, left); it.pomos += n; left -= n; });
 
   const planned = items.filter((it) => it.pomos > 0);
-  return { items: planned, slots: layoutSlots(planned, now), total, used: total - left, capMin, short };
+  return { items: planned, slots: layoutSlots(planned, from), total, used: total - left, capMin, short };
 }
 
 // 뽀모도로를 빈 시간 구간에 차례로 배치. 같은 과제가 이어지면 한 슬롯으로 묶는다.
