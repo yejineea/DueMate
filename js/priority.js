@@ -45,7 +45,8 @@ function weekLoad(weekStart, now = Date.now()) {
   const end = addDays(weekStart, 7);
   const days = [...Array(7)].map((_, i) => {
     const date = addDays(weekStart, i);
-    return { date, load: 0, avail: dailyAvail(date), tasks: [] };
+    const [ws, we] = dayWindow(date);
+    return { date, load: 0, avail: availableBetween(Math.max(now, ws), we), tasks: [] };
   });
   let total = 0;
   state.tasks.filter((t) => !t.done).forEach((t) => {

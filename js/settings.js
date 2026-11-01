@@ -180,7 +180,7 @@ function exportCSV() {
   const header = ['과목', '제목', '유형', '마감', '예상시간(h)', '실제시간(h)', '뽀모도로', '중요도', '난이도', '진행률(%)', '상태'];
   const rows = state.tasks.map((t) => [t.subject, t.title, t.type, t.due.replace('T', ' '), t.estHours, hours(actualMs(t)), pomoCount(t),
     t.importance, t.difficulty, progress(t), t.done ? '완료' : '미완료'].map(q).join(','));
-  download(`duemate-tasks-${ymd(new Date())}.csv`, '﻿' + [header.map(q).join(','), ...rows].join('\n'), 'text/csv;charset=utf-8');
+  download(`duemate-tasks-${ymd(new Date())}.csv`, '\uFEFF' + [header.map(q).join(','), ...rows].join('\n'), 'text/csv;charset=utf-8');
 }
 
 function importJSON(file) {

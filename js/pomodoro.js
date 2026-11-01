@@ -39,15 +39,18 @@ function logFocus(taskId, ms, now, pomo) {
 }
 
 // 현재 단계를 끝내고 다음 단계로 넘어간다. 집중이 끝나면 기록하고 휴식을 바로 시작한다.
-// 탭이 닫혀 있는 동안 끝났다면(1분 이상 지남) 다음 단계는 자동으로 시작하지 않는다.
+// 숨긴 탭은 브라우저가 타이머를 최대 1분까지 늦추므로 그 정도 지연은 원래 종료 시각에 이어서 진행하고,
+// 탭이 닫혀 있는 동안 끝난 경우(3분 이상 지남)에는 다음 단계를 자동으로 시작하지 않는다.
+const LATE_MS = 3 * MIN;
 function pomoAdvance(now = Date.now()) {
   const tm = state.timer;
   const pm = state.settings.pomodoro;
-  const late = tm.endsAt && now - tm.endsAt > MIN;
+  const endedAt = tm.endsAt ? Math.min(now, tm.endsAt) : now;
+  const late = now - endedAt > LATE_MS;
   const from = tm.phase;
   let logged = 0;
   if (from === 'focus') {
-    logged = logFocus(tm.taskId, tm.dur - pomoLeft(now), now, true);
+    logged = logFocus(tm.taskId, tm.dur - pomoLeft(now), endedAt, true);
     tm.count++;
     tm.phase = tm.count % pm.longEvery === 0 ? 'long' : 'short';
   } else {
@@ -55,7 +58,7 @@ function pomoAdvance(now = Date.now()) {
   }
   tm.dur = phaseMs(tm.phase);
   const auto = !late && (tm.phase !== 'focus' || pm.autoFocus);
-  tm.endsAt = auto ? now + tm.dur : null;
+  tm.endsAt = auto ? endedAt + tm.dur : null;
   tm.left = auto ? null : tm.dur;
   return { from, to: tm.phase, logged };
 }

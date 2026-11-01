@@ -10,11 +10,14 @@ const TEMPLATES = {
 
 function sortTasks(list, key) {
   const byDue = (a, b) => new Date(a.due) - new Date(b.due);
+  if (key === 'priority') {
+    const score = new Map(list.map((t) => [t, t.done ? -1 : priorityOf(t).score]));
+    return [...list].sort((a, b) => score.get(b) - score.get(a) || byDue(a, b));
+  }
   const sorters = {
     due: byDue,
     importance: (a, b) => b.importance - a.importance || byDue(a, b),
     progress: (a, b) => progress(a) - progress(b) || byDue(a, b),
-    priority: (a, b) => a.done - b.done || priorityOf(b).score - priorityOf(a).score || byDue(a, b),
   };
   return [...list].sort(sorters[key] || byDue);
 }

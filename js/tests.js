@@ -50,6 +50,12 @@ describe('공부 가능 시간 자동 계산', () => {
     fresh({}, { schedule: [fixed(0, '07:00', '08:00'), fixed(3, '10:00', '12:00')] });
     near(dayCapacity(MON).fixedH, 0);
   });
+  test('자정을 넘는 활동 시간의 새벽에는 전날 활동일의 남은 시간만 오늘로 본다', () => {
+    fresh({ dayStart: '10:00', dayEnd: '02:00' });
+    const now = at(1, '01:00');
+    eq(hm(todayEnd(now)), '02:00');
+    eq(freeSlotsToday(now).map(([s, e]) => [hm(s), hm(e)]), [['01:00', '02:00']]);
+  });
   test('직접 입력 모드에서는 요일별 입력값을 쓴다', () => {
     fresh({ hoursMode: 'manual', dailyHours: [1.5, 2, 2, 2, 2, 3, 3] });
     near(dailyAvail(MON), 1.5);
@@ -101,6 +107,11 @@ describe('7일 과부하 분석', () => {
     fresh({ maxStudy: 12 }, { schedule: [fixed(0, '09:00', '13:00')] });
     near(weekLoad(MON, at(0, '18:30')).avail, 76);
   });
+  test('날짜별 가능 시간도 지금 이후만 센다 (오늘은 남은 4h)', () => {
+    fresh({ maxStudy: 12 }, { schedule: [fixed(0, '09:00', '13:00')] });
+    const w = weekLoad(MON, at(0, '18:30'));
+    near(w.days[0].avail, 4); near(w.days[1].avail, 12);
+  });
   test('7일 안에 마감인 작업이 가용 시간보다 많으면 과부하다', () => {
     fresh({ maxStudy: 2 });
     state.tasks = [task({ estHours: 20, due: `${ymd(addDays(MON, 2))}T23:59` })];
@@ -136,6 +147,14 @@ describe('오늘 계획', () => {
     const r = setup(10);
     eq(r.items.map((x) => [x.t.title, x.pomos]), [['A', 8]]);
     eq(r.short.map((x) => [x.t.title, x.missing]), [['A', 16]]);
+  });
+  test('빈 시간이 25분보다 잘게 쪼개져 있으면 배치하지 못한 뽀모도로는 세지 않고 부족으로 알린다', () => {
+    fresh({ dayStart: '18:00', dayEnd: '19:20', lifeHours: 0, maxStudy: 12 },
+      { schedule: [fixed(0, '18:20', '18:30'), fixed(0, '18:50', '19:00')] }); // 빈 시간 20분 × 3
+    state.tasks = [task({ title: 'A', estHours: 1, due: `${ymd(MON)}T23:00` })];
+    const r = planToday(at(0, '18:00'));
+    eq(r.total, 2); eq(r.used, 0); eq(r.slots, []);
+    eq(r.short.map((x) => x.t.title), ['A']);
   });
   test('뽀모도로가 진행 중이면 그 집중과 휴식이 끝난 뒤부터 계획한다', () => {
     fresh({ maxStudy: 12 }, { schedule: [fixed(0, '09:00', '13:00')] });
@@ -210,6 +229,17 @@ describe('뽀모도로', () => {
     pomoAdvance(T0 + 3 * HOUR);
     eq(pomoCount(t), 1); eq(state.timer.endsAt, null); eq(state.timer.phase, 'short');
   });
+  test('숨긴 탭에서 타이머가 1분 남짓 늦게 처리돼도 휴식은 원래 종료 시각부터 자동 시작된다', () => {
+    begin();
+    pomoAdvance(T0 + 25 * MIN + 90e3);
+    eq(state.timer.endsAt, T0 + 30 * MIN);
+  });
+  test('밤늦게 끝난 집중을 자정 이후에 처리해도 끝난 날짜로 기록한다', () => {
+    const t = begin();
+    state.timer.endsAt = at(0, '23:50');
+    pomoAdvance(at(1, '00:30'));
+    eq(t.logs[0].date, ymd(MON));
+  });
   test('뽀모도로 기록이 남은 작업량과 오늘 계획에 반영된다', () => {
     const t = begin();
     const before = remainingWork(t);
@@ -241,7 +271,13 @@ describe('v1 데이터 호환', () => {
   test('v1 설정은 유지하고 새 설정은 기본값으로 채운다', () => {
     const s = normalize(JSON.parse(JSON.stringify(v1)));
     eq(s.settings.dailyHours, [1, 1, 1, 1, 1, 4, 4]); eq(s.settings.alertHours, 12); eq(s.settings.theme, 'dark');
-    eq(s.settings.hoursMode, 'auto'); eq(s.settings.pomodoro.focus, 25); eq(s.settings.dayStart, '09:00');
+    eq(s.settings.pomodoro.focus, 25); eq(s.settings.dayStart, '09:00');
+  });
+  test('v1에서 요일별 시간을 직접 바꿔 둔 사용자는 직접 입력 모드로 옮겨 값이 바뀌지 않는다', () => {
+    eq(normalize(JSON.parse(JSON.stringify(v1))).settings.hoursMode, 'manual');
+  });
+  test('v1 기본값 그대로인 사용자는 자동 계산 모드로 시작한다', () => {
+    eq(normalize({ ...JSON.parse(JSON.stringify(v1)), settings: { dailyHours: [2, 2, 2, 2, 2, 3, 3] } }).settings.hoursMode, 'auto');
   });
   test('측정 중이던 v1 스톱워치 시간은 작업 기록으로 옮기고 타이머를 끈다', () => {
     const s = normalize(JSON.parse(JSON.stringify(v1)));
@@ -265,6 +301,15 @@ describe('화면 렌더링', () => {
       ok(typeof fn() === 'string', '빈 데이터 화면 실패');
     });
   });
+  {
+    state = sampleState();
+    for (let i = 0; i < 40; i++) state.tasks.push(task({ title: `과제${i}`, estHours: 3 + (i % 5), due: `${ymd(addDays(new Date(), i * 3))}T23:59` }));
+    const times = Object.entries(views).map(([name, fn]) => { const t0 = performance.now(); fn(); return [name, Math.round(performance.now() - t0)]; });
+    test(`과제 46개(마감 최대 4개월 뒤)에서도 화면마다 200ms 안에 그려진다 — ${times.map(([n, ms]) => `${n} ${ms}ms`).join(', ')}`, () => {
+      const slow = times.filter(([, ms]) => ms > 200);
+      ok(!slow.length, `느린 화면: ${JSON.stringify(slow)}`);
+    });
+  }
   test('직접 입력 모드에서도 설정 화면이 그려진다', () => {
     state = sampleState();
     state.settings.hoursMode = 'manual';
@@ -324,6 +369,14 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     openTaskForm(t.id);
     click('#modal-box [data-action="delete-task"]');
     ok(!state.tasks.includes(t), '삭제됨');
+  });
+  test('휴식 중에는 오늘 화면 버튼이 집중 중이라고 표시하지 않는다', () => {
+    show('today');
+    click('.hero [data-action="pomo-start"]');
+    pomoAdvance(state.timer.endsAt);
+    render();
+    ok($('.hero').textContent.includes('휴식 중'), $('.hero .hero-actions').textContent.trim());
+    pomoStop();
   });
   test('탭 버튼과 분석의 통계/성적 전환이 동작한다', () => {
     show('today');

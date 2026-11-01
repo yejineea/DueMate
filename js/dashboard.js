@@ -26,6 +26,12 @@ function buildAlerts(wk, skipId) {
   return alerts;
 }
 
+function activeButton(tm) {
+  if (tm.phase !== 'focus') return '<button class="btn lg" data-action="pomo-skip">휴식 중 · 건너뛰기</button>';
+  return tm.endsAt ? '<button class="btn lg" data-action="pomo-pause">집중 중 · 일시정지</button>'
+    : '<button class="btn primary lg" data-action="pomo-resume">이어서 집중</button>';
+}
+
 function heroCard(rec) {
   if (!rec) {
     return `<section class="panel hero done"><div class="hero-label">지금 할 일</div>
@@ -47,7 +53,7 @@ function heroCard(rec) {
         ${next ? `<div class="small">다음 단계: <b>${esc(next.text)}</b></div>` : ''}
       </div>
       <div class="hero-actions">
-        ${active ? `<button class="btn lg" data-action="${tm.endsAt ? 'pomo-pause' : 'pomo-resume'}">${tm.endsAt ? '집중 중 · 일시정지' : '이어서 집중'}</button>`
+        ${active ? activeButton(tm)
           : `<button class="btn primary lg" data-action="pomo-start" data-id="${t.id}">▶ ${focus}분 집중 시작</button>`}
         <button class="btn" data-action="toggle-done" data-id="${t.id}">완료 처리</button>
       </div>
@@ -99,7 +105,7 @@ function renderToday() {
 
   return `
   ${heroCard(top)}
-  ${recs.length ? planPanel(planToday()) : ''}
+  ${recs.length ? planPanel(planToday(Date.now(), recs)) : ''}
   ${shown.length ? `<section class="alerts">${shown.map((a) => `<div class="alert ${a.type}">${a.msg}</div>`).join('')}
     ${alerts.length > shown.length ? `<div class="muted small">외 경고 ${alerts.length - shown.length}건 · 분석 탭에서 주간 작업량을 확인하세요</div>` : ''}</section>` : ''}
   <section class="grid2">

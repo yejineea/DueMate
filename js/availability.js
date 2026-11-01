@@ -85,13 +85,19 @@ function availableBetween(from, to) {
 
 const availableUntil = (end, now = Date.now()) => availableBetween(now, new Date(end).getTime());
 
+// 지금 속한 활동일: 자정을 넘는 활동 시간대(예: 10:00~02:00)의 새벽 01시는 전날 활동일이다
+function activeDay(now = Date.now()) {
+  const yesterday = addDays(startOfDay(new Date(now)), -1);
+  return now < dayWindow(yesterday)[1] ? yesterday : startOfDay(new Date(now));
+}
+
 // 지금부터 오늘 활동 시간이 끝날 때까지 남은 빈 시간 구간
 function freeSlotsToday(now = Date.now()) {
-  const c = dayCapacity(new Date(now));
+  const c = dayCapacity(activeDay(now));
   const slots = c.freeH > 0 ? c.free : [c.win];
   return slots.map(([s, e]) => [Math.max(s, now), e]).filter(([s, e]) => e > s);
 }
-const todayEnd = (now = Date.now()) => dayWindow(new Date(now))[1];
+const todayEnd = (now = Date.now()) => dayWindow(activeDay(now))[1];
 
 // 최근 기록 기반 참고치: 최근 14일 중 기록이 있는 날의 평균 학습 시간
 function recentStudyAvg(now = Date.now()) {

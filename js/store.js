@@ -23,11 +23,13 @@ function normalize(data) {
   const s = { ...d, ...data, settings: { ...d.settings, ...ds, pomodoro: { ...d.settings.pomodoro, ...(ds.pomodoro || {}) } } };
   s.tasks = (s.tasks || []).map((t) => ({ desc: '', memo: '', subtasks: [], logs: [], done: false, doneAt: null, ...t }));
   if (!Array.isArray(s.settings.dailyHours) || s.settings.dailyHours.length !== 7) s.settings.dailyHours = d.settings.dailyHours;
+  // v1 사용자가 요일별 시간을 직접 바꿔 두었다면 그 값을 그대로 쓰도록 '직접 입력' 모드로 옮긴다
+  if (data.settings && !ds.hoursMode && s.settings.dailyHours.join() !== d.settings.dailyHours.join()) s.settings.hoursMode = 'manual';
   // v1 스톱워치 타이머 → 측정 중이던 시간을 기록으로 옮기고 종료
   if (s.timer && !s.timer.phase) {
     const ms = (s.timer.acc || 0) + (s.timer.startedAt ? Date.now() - s.timer.startedAt : 0);
     const t = s.tasks.find((x) => x.id === s.timer.taskId);
-    if (t && ms >= 1000) t.logs.push({ date: ymd(new Date()), ms });
+    if (t && ms >= 1000) t.logs = [...t.logs, { date: ymd(new Date()), ms }];
     s.timer = null;
   }
   return s;
