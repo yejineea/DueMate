@@ -12,7 +12,17 @@ function render() {
 
 function applyTheme() { document.documentElement.dataset.theme = state.settings.theme; }
 function openModal(html) { $('#modal-box').innerHTML = html; $('#modal').classList.remove('hidden'); $('#modal-box input')?.focus(); }
-function closeModal() { $('#modal').classList.add('hidden'); }
+function closeModal() { $('#modal').classList.add('hidden'); confirmFn = null; }
+
+// 확인창: 브라우저 기본 confirm 대신 앱 디자인의 모달
+let confirmFn = null;
+function askConfirm(title, detail, okLabel, fn) {
+  openModal(`<div class="confirm"><h3>${esc(title)}</h3>${detail ? `<p class="muted small">${esc(detail)}</p>` : ''}
+    <div class="modal-actions"><button type="button" class="btn" data-action="close-modal">취소</button>
+    <button type="button" class="btn danger-solid" data-action="confirm-ok">${esc(okLabel)}</button></div></div>`);
+  confirmFn = fn;
+  $('#modal-box [data-action="confirm-ok"]').focus();
+}
 
 const actions = {
   'new-task': (el) => openTaskForm(null, el.dataset.date),
@@ -29,6 +39,7 @@ const actions = {
   'del-sub': (el) => delSub(el.dataset.id, el.dataset.sid),
   'fill-template': () => fillTemplate(),
   'close-modal': () => closeModal(),
+  'confirm-ok': () => { const fn = confirmFn; closeModal(); if (fn) fn(); },
   'pomo-start': (el) => startPomodoro(el.dataset.id),
   'pomo-pause': () => pausePomodoro(),
   'pomo-resume': (el) => resumePomodoro(el.dataset.id),

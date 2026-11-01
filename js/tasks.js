@@ -229,11 +229,13 @@ function saveTaskForm(form) {
 
 function deleteTask(id) {
   const t = getTask(id);
-  if (!t || !confirm(`'${t.title}' 과제를 삭제할까요?`)) return;
-  if (state.timer && state.timer.taskId === id) state.timer = null;
-  delete state.timers[id];
-  state.tasks = state.tasks.filter((x) => x.id !== id);
-  save(); closeModal(); render(); toast('삭제되었습니다');
+  if (!t) return;
+  askConfirm(`'${t.title}' 삭제`, '기록과 하위 작업도 함께 지워집니다', '삭제', () => {
+    if (state.timer && state.timer.taskId === id) state.timer = null;
+    delete state.timers[id];
+    state.tasks = state.tasks.filter((x) => x.id !== id);
+    save(); render(); toast('삭제했습니다');
+  });
 }
 
 function toggleDone(id) {

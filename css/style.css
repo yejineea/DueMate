@@ -356,3 +356,8 @@ main[data-current="pomodoro"] { max-width: 1320px; }
   .daychks { flex-wrap: wrap; }
   .sched-form > * { flex: 1 1 auto; }
 }
+
+.btn.danger-solid { background: var(--red); border-color: var(--red); color: #fff; font-weight: 700; }
+.confirm h3 { margin-bottom: 6px; }
+.confirm p { margin: 0 0 16px; }
+.modal-box:has(.confirm) { max-width: 380px; }

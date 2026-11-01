@@ -212,10 +212,11 @@ function addSubject(name) {
 
 function delSubject(name) {
   const used = state.tasks.filter((t) => t.subject === name).length;
-  if (!confirm(`'${name}' 과목을 삭제할까요?${used ? ` (과제 ${used}개는 유지되고, 성적 항목은 삭제됩니다)` : ''}`)) return;
-  state.subjects = state.subjects.filter((s) => s !== name);
-  delete state.grades[name];
-  save(); render();
+  askConfirm(`'${name}' 과목 삭제`, used ? `과제 ${used}개는 남고 성적 항목은 지워집니다` : '', '삭제', () => {
+    state.subjects = state.subjects.filter((s) => s !== name);
+    delete state.grades[name];
+    save(); render();
+  });
 }
 
 function exportJSON() {
@@ -239,9 +240,10 @@ function importJSON(file) {
     try {
       const data = JSON.parse(reader.result);
       if (!Array.isArray(data.tasks)) throw new Error('invalid');
-      if (!confirm('현재 데이터를 백업 파일 내용으로 덮어쓸까요?')) return;
-      state = normalize(data);
-      save(); applyTheme(); render(); toast('복원이 완료되었습니다');
+      askConfirm('백업 파일로 복원', '지금 데이터는 백업 내용으로 바뀝니다', '복원', () => {
+        state = normalize(data);
+        save(); applyTheme(); render(); toast('복원했습니다');
+      });
     } catch (e) {
       toast('올바른 DueMate 백업 파일이 아닙니다');
     }
@@ -250,13 +252,14 @@ function importJSON(file) {
 }
 
 function loadSample() {
-  if (state.tasks.length && !confirm('현재 데이터를 샘플 데이터로 덮어쓸까요?')) return;
-  state = sampleState();
-  save(); applyTheme(); render(); toast('샘플 데이터를 불러왔습니다');
+  const run = () => { state = sampleState(); save(); applyTheme(); render(); toast('샘플 데이터를 불러왔습니다'); };
+  if (!state.tasks.length) return run();
+  askConfirm('샘플 데이터 불러오기', '지금 데이터는 샘플로 바뀝니다', '불러오기', run);
 }
 
 function resetData() {
-  if (!confirm('모든 데이터를 삭제할까요? 되돌릴 수 없습니다.')) return;
-  state = defaultState();
-  save(); applyTheme(); render(); toast('초기화되었습니다');
+  askConfirm('모든 데이터 삭제', '되돌릴 수 없습니다 · 먼저 백업을 권합니다', '모두 삭제', () => {
+    state = defaultState();
+    save(); applyTheme(); render(); toast('초기화했습니다');
+  });
 }

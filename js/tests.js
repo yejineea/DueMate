@@ -858,6 +858,15 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     state.lastBackup = Date.now(); render();
     ok(!$('.backup-alert') && $('#view').textContent.includes('마지막 백업: 오늘'), '사라지고 날짜 표시');
   });
+  test('데이터 초기화는 앱 확인창에서 취소할 수 있다 (브라우저 기본창 없음)', () => {
+    show('settings');
+    window.confirm = () => { throw new Error('브라우저 기본 confirm 호출됨'); };
+    click('[data-action="reset-data"]');
+    ok($('#modal-box .confirm'), '앱 확인창');
+    click('#modal-box [data-action="close-modal"]');
+    ok(state.tasks.length > 0, '취소하면 그대로');
+    window.confirm = () => true;
+  });
   test('추천 이유는 문장이 아니라 태그로 보인다', () => {
     show('pomodoro');
     ok($$(cur('.tags .tag')).length >= 2, '태그 표시');
@@ -880,7 +889,10 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     const t = state.tasks.find((x) => x.title === '테스트 과제');
     openTaskForm(t.id);
     click('#modal-box [data-action="delete-task"]');
+    ok(state.tasks.includes(t) && $('#modal-box .confirm'), '바로 지우지 않고 앱 확인창을 띄움');
+    click('#modal-box [data-action="confirm-ok"]');
     ok(!state.tasks.includes(t), '삭제됨');
+    ok($('#modal').classList.contains('hidden'), '확인창 닫힘');
   });
   test('입력 화면: 유형·난이도를 바꾸면 예상 시간이 자동으로 바뀌고 근거가 표시된다', () => {
     state = defaultState(); render();
