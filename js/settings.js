@@ -59,18 +59,17 @@ function pomodoroSection() {
   const num = (key, label, min, max) => `<label class="form">${label}<input type="number" min="${min}" max="${max}" step="1" data-setting="pomo.${key}" value="${pm[key]}"></label>`;
   const check = (key, label) => `<label class="check"><input type="checkbox" data-setting="pomo.${key}" ${pm[key] ? 'checked' : ''}> ${label}</label>`;
   return `
-  <section class="panel">
-    <h3>뽀모도로</h3>
-    <div class="row">${num('focus', '집중 (분)', 5, 90)}${num('short', '짧은 휴식 (분)', 1, 30)}${num('long', '긴 휴식 (분)', 5, 60)}${num('longEvery', '긴 휴식 간격 (회)', 2, 8)}</div>
+  <details class="panel pomo-settings">
+    <summary>뽀모도로 설정 <span class="muted small">집중 ${pm.focus}분 · 휴식 ${pm.short}분 · ${pm.longEvery}회마다 긴 휴식 ${pm.long}분</span></summary>
+    <div class="row" style="margin-top:12px">${num('focus', '집중 (분)', 5, 90)}${num('short', '짧은 휴식 (분)', 1, 30)}${num('long', '긴 휴식 (분)', 5, 60)}${num('longEvery', '긴 휴식 간격 (회)', 2, 8)}</div>
     <div class="inline">${check('autoFocus', '휴식이 끝나면 다음 집중 자동 시작')}${check('sound', '종료 알림음')}${check('notify', '브라우저 알림')}</div>
-  </section>`;
+  </details>`;
 }
 
 function renderSettings() {
   const s = state.settings;
   return `
   ${studyTimeSection()}
-  ${pomodoroSection()}
 
   <section class="panel">
     <h3>과목</h3>

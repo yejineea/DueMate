@@ -26,7 +26,12 @@ function buildAlerts(wk, skipId) {
   return alerts;
 }
 
-function heroCard(rec) {
+function taskPicker(recs, cur) {
+  return `<label class="picker"><span class="small muted">과제 바꾸기</span>
+    <select data-pick>${recs.map(({ t, p }, i) => `<option value="${t.id}" ${t.id === cur ? 'selected' : ''}>${i === 0 ? '★ ' : ''}${esc(t.title)} · ${esc(t.subject)} · ${remainText(t.due)} (P${p.score})</option>`).join('')}</select></label>`;
+}
+
+function heroCard(rec, recs) {
   if (!rec) {
     return `<section class="panel hero"><div class="hero-label">지금 할 일</div>
       <h2>남은 과제가 없습니다 🎉</h2><p class="muted">새 과제가 생기면 <b>+ 과제 추가</b>로 등록하세요.</p></section>`;
@@ -37,12 +42,16 @@ function heroCard(rec) {
   <section class="panel hero">
     <div class="hero-main">
       <div class="hero-text">
-        <div class="hero-label">${rec.active ? '집중 중인 과제' : '지금 할 일'} <span class="badge lv-${p.level}">P${p.score}</span></div>
+        <div class="hero-label">${rec.label} <span class="badge lv-${p.level}">P${p.score}</span></div>
         <h2>${esc(t.title)}</h2>
         <div class="muted">${esc(t.subject)} · ${fmtDue(t.due)} · <b class="${p.hoursLeft <= 0 ? 'red' : p.hoursLeft <= 24 ? 'orange' : ''}">${remainText(t.due)}</b> · 남은 작업 약 ${p.work.toFixed(1)}h</div>
         <p class="hero-why">${esc(priorityText(t))}</p>
         ${next ? `<div class="small">다음 단계: <b>${esc(next.text)}</b></div>` : ''}
-        <button class="btn sm" data-action="toggle-done" data-id="${t.id}" style="margin-top:12px">완료 처리</button>
+        <div class="hero-tools">
+          ${taskPicker(recs, t.id)}
+          <button class="btn sm" data-action="toggle-done" data-id="${t.id}">완료 처리</button>
+        </div>
+        ${state.timer ? '<p class="muted small" style="margin:6px 0 0">집중 중에 과제를 바꾸면 지금까지의 시간은 이전 과제에 기록되고, 남은 시간은 새 과제로 이어집니다.</p>' : ''}
       </div>
       ${pomoRing(t.id)}
     </div>
@@ -64,7 +73,7 @@ function planPanel(tp) {
         <span class="slot-time">${hm(s.start)}–${hm(s.end)}</span>
         <span class="slot-title">${esc(s.t.title)} <span class="muted small">${esc(s.t.subject)}</span></span>
         <span class="slot-pomo" title="${pm.focus}분 집중 ${s.pomos}회">🍅×${s.pomos}</span>
-        <button class="btn xs" data-action="pomo-start" data-id="${s.t.id}">시작</button>
+        <button class="btn xs" data-action="pick-task" data-id="${s.t.id}">선택</button>
       </div>`).join('')}</div>`
     : `<p class="muted small">${tp.capMin < pm.focus ? '오늘 남은 공부 가능 시간이 없습니다. 내일 계획은 자정 이후 다시 계산됩니다.' : '배정할 작업이 없습니다.'}</p>`;
   const short = tp.short.map((x) => `<div class="alert danger">'${esc(x.t.title)}' 오늘 마감까지 집중 ${x.missing}회(약 ${((x.missing * pm.focus) / 60).toFixed(1)}h)가 부족합니다. 범위를 줄이거나 다른 일정을 조정하세요.</div>`).join('');
@@ -72,42 +81,51 @@ function planPanel(tp) {
     <p class="muted small" style="margin-bottom:0">🍅 1개 = ${pm.focus}분 집중 + ${pm.short}분 휴식. 오늘 남은 공부 가능 시간을 이 단위로 나눠, 마감까지 고르게 했을 때 오늘 해야 할 몫을 먼저 배정하고 남는 시간은 우선순위가 높은 과제에 줍니다.</p></section>`;
 }
 
-function renderToday() {
+// 카드에 보여 줄 과제: 집중 중인 과제 > 직접 고른 과제 > 오늘 계획 첫 슬롯 > 우선순위 1위
+function focusTarget(recs, tp) {
+  const find = (id) => recs.find((r) => r.t.id === id);
+  if (state.timer && find(state.timer.taskId)) return { ...find(state.timer.taskId), label: '집중 중인 과제' };
+  if (focusPick && find(focusPick)) return { ...find(focusPick), label: '선택한 과제' };
+  focusPick = null;
+  const first = tp && tp.slots.length && recs.find((r) => r.t === tp.slots[0].t);
+  const top = first || recs.find((r) => r.p.work > 0) || recs[0];
+  return top && { ...top, label: '지금 할 일' };
+}
+
+// 뽀모도로 탭: 지금 할 일과 원형 타이머 → 오늘 계획 → 핵심 경고 → 다음 순위·7일 내 마감 → 뽀모도로 설정
+function renderFocus() {
   const all = state.tasks;
   if (!all.length) {
     return `<section class="panel hero"><div class="hero-label">시작하기</div>
       <h2>과제를 등록하면 지금 할 일을 골라 드립니다</h2>
-      <p class="muted">마감일·예상 시간·중요도를 입력하면, 시간표를 뺀 실제 빈 시간에 맞춰 오늘의 뽀모도로 계획을 짭니다.</p>
+      <p class="muted">마감일·유형·난이도를 입력하면, 시간표를 뺀 실제 빈 시간에 맞춰 오늘의 뽀모도로 계획을 짭니다.</p>
       <div class="toolbar"><button class="btn primary" data-action="new-task">+ 과제 추가</button>
-      <button class="btn" data-action="load-sample">샘플 데이터로 체험</button></div></section>`;
+      <button class="btn" data-action="load-sample">샘플 데이터로 체험</button></div></section>
+      ${pomodoroSection()}`;
   }
   const now = new Date();
   const recs = recommend();
   const tp = recs.length ? planToday(Date.now(), recs) : null;
-  // 지금 할 일 = 오늘 계획의 첫 슬롯 (계획이 없으면 우선순위 1위)
-  const first = tp && tp.slots.length && recs.find((r) => r.t === tp.slots[0].t);
-  let top = first || recs.find((r) => r.p.work > 0) || recs[0];
-  // 뽀모도로가 진행 중이면 그 과제를 카드에 보여 준다 (원형 타이머가 카드 안에 있으므로)
-  const active = state.timer && recs.find((r) => r.t.id === state.timer.taskId);
-  if (active) top = { ...active, active: true };
-  const rest = recs.filter((r) => r.t !== top.t).slice(0, 4);
+  const top = focusTarget(recs, tp);
+  const rest = recs.filter((r) => !top || r.t !== top.t).slice(0, 4);
   const upcoming = all.filter((t) => { const h = (new Date(t.due) - now) / 36e5; return !t.done && h > 0 && h <= 168; })
     .sort((a, b) => new Date(a.due) - new Date(b.due)).slice(0, 5);
   const alerts = buildAlerts(weekLoad(startOfDay(now)), top && top.t.id);
   const shown = alerts.slice(0, 3);
 
   return `
-  ${heroCard(top)}
+  ${heroCard(top, recs)}
   ${tp ? planPanel(tp) : ''}
   ${shown.length ? `<section class="alerts">${shown.map((a) => `<div class="alert ${a.type}">${a.msg}</div>`).join('')}
-    ${alerts.length > shown.length ? `<div class="muted small">외 경고 ${alerts.length - shown.length}건 · 분석 탭에서 주간 작업량을 확인하세요</div>` : ''}</section>` : ''}
+    ${alerts.length > shown.length ? `<div class="muted small">외 경고 ${alerts.length - shown.length}건 · 리포트 탭에서 주간 작업량을 확인하세요</div>` : ''}</section>` : ''}
   <section class="grid2">
     <div class="panel">
       <h3>다음 순위</h3>
       ${rest.length ? `<ul class="mini">${rest.map(({ t, p }) => `
         <li><span>${esc(t.title)} <span class="badge lv-${p.level}">P${p.score}</span> <span class="muted small">${esc(t.subject)} · ${remainText(t.due)}</span></span>
-        <button class="btn xs" data-action="pomo-start" data-id="${t.id}" title="뽀모도로 시작">🍅</button></li>`).join('')}</ul>` : '<p class="muted small">없음</p>'}
+        <button class="btn xs" data-action="pick-task" data-id="${t.id}">선택</button></li>`).join('')}</ul>` : '<p class="muted small">없음</p>'}
     </div>
     <div class="panel"><h3>7일 내 마감</h3>${miniList(upcoming)}</div>
-  </section>`;
+  </section>
+  ${pomodoroSection()}`;
 }

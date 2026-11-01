@@ -182,3 +182,8 @@ input, select, textarea { font: inherit; color: var(--text); background: var(--b
 .more[open] { display: flex; flex-direction: column; gap: 10px; }
 .cal-box { margin: 4px 0 12px; }
 .form label.check { flex-direction: row; flex: 0 0 auto; align-items: center; }
+
+.hero-tools { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-top: 12px; }
+.picker { display: flex; flex-direction: column; gap: 2px; max-width: 100%; }
+.picker select { max-width: 460px; }
+.pomo-settings summary { cursor: pointer; font-weight: 700; }

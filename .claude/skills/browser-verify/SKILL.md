@@ -25,7 +25,7 @@ Bash에서 저장소 루트 기준으로 실행한다.
 bash .claude/skills/browser-verify/verify.sh test
 
 # 2) 스크린샷 한 장: 이름, 쿼리, (선택) 높이
-bash .claude/skills/browser-verify/verify.sh shot today "demo&tab=today"
+bash .claude/skills/browser-verify/verify.sh shot pomodoro "demo&tab=pomodoro"
 
 # 3) README용 전체 탭 스크린샷 (docs/images/v2-*.png)
 bash .claude/skills/browser-verify/verify.sh shots

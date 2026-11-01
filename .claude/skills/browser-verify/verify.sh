@@ -36,12 +36,12 @@ case "${1:-test}" in
   test) run_tests ;;
   shot) shot "$2" "$3" "${4:-1000}" ;;
   shots)
-    shot v2-today "demo&tab=today&pomo" 1100
-    shot v2-tasks "demo&tab=tasks"
-    shot v2-calendar "demo&tab=calendar"
-    shot v2-analytics "demo&tab=analytics" 1500
-    shot v2-grades "demo&tab=analytics&view=grades"
-    shot v2-settings "demo&tab=settings" 1500
+    shot v2-pomodoro "demo&tab=pomodoro&pomo" 1300
+    shot v2-todo "demo&tab=todo"
+    shot v2-calendar "demo&tab=todo&view=calendar"
+    shot v2-report "demo&tab=report" 1500
+    shot v2-grades "demo&tab=report&view=grades"
+    shot v2-settings "demo&tab=settings" 1300
     ;;
   *) echo "usage: verify.sh test | shot <name> <query> [height] | shots"; exit 2 ;;
 esac

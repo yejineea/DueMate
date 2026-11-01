@@ -63,6 +63,21 @@ function pomoAdvance(now = Date.now()) {
   return { from, to: tm.phase, logged };
 }
 
+// 과제 전환: 지금까지 집중한 시간은 이전 과제에 기록하고, 남은 시간은 새 과제의 집중으로 이어 간다
+function pomoSwitch(taskId, now = Date.now()) {
+  const tm = state.timer;
+  if (!tm || tm.taskId === taskId) return 0;
+  let ms = 0;
+  if (tm.phase === 'focus') {
+    const left = pomoLeft(now);
+    ms = logFocus(tm.taskId, tm.dur - left, now, false);
+    tm.dur = left;
+    if (!tm.endsAt) tm.left = left;
+  }
+  tm.taskId = taskId;
+  return ms;
+}
+
 // 중단: 집중 중이었다면 지금까지 집중한 시간(1분 이상)만 기록한다
 function pomoStop(now = Date.now()) {
   const tm = state.timer;
@@ -116,17 +131,32 @@ function notifyPhase(ev) {
   }
 }
 
-// 시작하면 원형 타이머가 있는 "오늘" 화면으로 이동한다
+// 시작하면 원형 타이머가 있는 뽀모도로 탭으로 이동한다. 다른 과제가 진행 중이면 남은 시간을 이어서 전환한다.
 function startPomodoro(id) {
   const tm = state.timer;
   if (tm && tm.taskId === id) pomoResume();
-  else {
-    if (tm && !confirm('진행 중인 뽀모도로를 끝내고 이 과제로 시작할까요? (집중한 시간은 기록됩니다)')) return;
-    if (tm) pomoStop();
-    pomoBegin(id);
-  }
+  else if (tm) switchTask(id, false);
+  else pomoBegin(id);
+  focusPick = id;
   primeAlerts();
-  currentTab = 'today';
+  currentTab = 'pomodoro';
+  save(); render();
+}
+
+let focusPick = null; // 뽀모도로 탭에서 사용자가 고른 과제 (없으면 오늘 계획 첫 슬롯)
+
+function switchTask(id, rerender = true) {
+  const ms = pomoSwitch(id);
+  toast(ms ? `이전 과제에 ${Math.round(ms / MIN)}분을 기록하고, 남은 시간은 이 과제로 이어 갑니다` : '남은 시간을 이 과제로 이어 갑니다');
+  if (rerender) { save(); render(); }
+}
+
+// 과제 선택: 타이머가 돌고 있으면 바로 전환, 아니면 시작할 과제로 지정
+function pickTask(id) {
+  if (!id) return;
+  if (state.timer && state.timer.taskId !== id) switchTask(id, false);
+  focusPick = id;
+  currentTab = 'pomodoro';
   save(); render();
 }
 
@@ -182,7 +212,7 @@ function pomoRing(taskId) {
 function renderPomoChip() {
   if (state.timer && !getTask(state.timer.taskId)) { state.timer = null; save(); }
   const chip = $('#pomo-chip');
-  if (chip) chip.hidden = !state.timer || currentTab === 'today';
+  if (chip) chip.hidden = !state.timer || currentTab === 'pomodoro';
   if (!state.timer) { document.title = BASE_TITLE; return; }
   updateTimerClock();
 }

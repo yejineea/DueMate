@@ -1,8 +1,6 @@
-const VIEWS = {
-  today: 'renderToday', tasks: 'renderTasks', calendar: 'renderCalendar',
-  analytics: 'renderAnalytics', settings: 'renderSettings',
-};
-let currentTab = VIEWS[params.get('tab')] ? params.get('tab') : 'today';
+const VIEWS = { pomodoro: 'renderFocus', todo: 'renderTodo', report: 'renderAnalytics', settings: 'renderSettings' };
+const TAB_ALIAS = { today: 'pomodoro', tasks: 'todo', calendar: 'todo', analytics: 'report' };
+let currentTab = TAB_ALIAS[params.get('tab')] || (VIEWS[params.get('tab')] ? params.get('tab') : 'pomodoro');
 
 function render() {
   const fn = window[VIEWS[currentTab]];
@@ -40,6 +38,8 @@ const actions = {
   'del-schedule': (el) => delSchedule(el.dataset.sid),
   'hours-mode': (el) => setHoursMode(el.dataset.mode),
   'analytics-view': (el) => { analyticsView = el.dataset.view; render(); },
+  'todo-view': (el) => { todoView = el.dataset.view; render(); },
+  'pick-task': (el) => pickTask(el.dataset.id),
   'del-subject': (el) => delSubject(el.dataset.name),
   'export-json': () => exportJSON(),
   'export-csv': () => exportCSV(),
@@ -84,6 +84,7 @@ document.addEventListener('input', (e) => { if (e.target.form && e.target.form.d
 document.addEventListener('change', (e) => {
   const el = e.target;
   if (el.form && el.form.dataset.form === 'task') return onTaskFormInput(el);
+  if (el.dataset.pick !== undefined) return pickTask(el.value);
   if (el.dataset.filter) return onFilterChange(el);
   if (el.dataset.grade) return onGradeChange(el);
   if (el.dataset.setting) return onSettingChange(el);
@@ -95,7 +96,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal
 // 남은 시간 표시 갱신 (입력 중이거나 모달이 열려 있으면 건너뜀)
 setInterval(() => {
   const typing = document.activeElement && document.activeElement.matches('input, textarea, select');
-  if (['today', 'tasks', 'calendar'].includes(currentTab) && $('#modal').classList.contains('hidden') && !typing) render();
+  if (['pomodoro', 'todo'].includes(currentTab) && $('#modal').classList.contains('hidden') && !typing) render();
 }, 60000);
 
 // 데모 + &pomo: 지금 할 일(오늘 계획 첫 슬롯)의 뽀모도로가 진행 중인 화면 (스크린샷·체험용)

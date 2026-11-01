@@ -22,6 +22,16 @@ function sortTasks(list, key) {
   return [...list].sort(sorters[key] || byDue);
 }
 
+let todoView = params.get('tab') === 'calendar' || params.get('view') === 'calendar' ? 'calendar' : 'list';
+
+// ToDo 탭: 과제 목록과 캘린더를 상단 버튼으로 전환
+function renderTodo() {
+  const seg = `<div class="seg">
+    <button class="${todoView === 'list' ? 'on' : ''}" data-action="todo-view" data-view="list">목록</button>
+    <button class="${todoView === 'calendar' ? 'on' : ''}" data-action="todo-view" data-view="calendar">캘린더</button></div>`;
+  return `<div class="toolbar" style="margin:0">${seg}</div>${todoView === 'calendar' ? renderCalendar() : renderTasks()}`;
+}
+
 function renderTasks() {
   let list = state.tasks;
   if (taskUI.subject !== 'all') list = list.filter((t) => t.subject === taskUI.subject);
