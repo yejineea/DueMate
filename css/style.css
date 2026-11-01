@@ -299,7 +299,7 @@ main[data-current="pomodoro"] { max-width: 1320px; }
 .pl-green { fill: var(--green); stroke: var(--green-dark); stroke-width: 1.5; }
 .pl-fruit { fill: var(--red); }
 .pl-cap { fill: none; stroke: var(--green-dark); stroke-width: 2; stroke-linecap: round; }
-.pl-seed { fill: var(--green-dark); }
+.pl-seed { fill: var(--green); stroke: var(--green-dark); stroke-width: 1.5; }
 .pl-soil { fill: var(--muted); opacity: .5; }
 .pl-pot { fill: var(--line); stroke: var(--muted); stroke-width: 1.5; }
 /* 일정: 하루만 / 매주 / 매월 */
@@ -312,17 +312,14 @@ main[data-current="pomodoro"] { max-width: 1320px; }
 .sched-row > b { width: 32px; }
 
 /* 토마토 표정 + 말풍선, 단계 기준 */
-.plant-wrap { display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; }
-.talk { display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 170px; }
-.tomato-face { width: 64px; height: 66px; }
-.tf-body { fill: var(--red); }
-.tf-leaf { fill: var(--green); }
+.plant-wrap { display: flex; align-items: flex-start; justify-content: center; gap: 0; }
 .tf-eye { fill: #2b1d1d; }
-.tf-line { fill: none; stroke: #2b1d1d; stroke-width: 2.4; stroke-linecap: round; }
+.tf-line { fill: none; stroke: #2b1d1d; stroke-width: 1.6; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .tf-tear { fill: #fff; opacity: .9; }
 .tf-blush { fill: #fff; opacity: .35; }
-.bubble { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; font-size: 13px; text-align: center; }
-.bubble::before { content: ""; position: absolute; top: -6px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 10px; height: 10px; background: var(--card); border-left: 1px solid var(--line); border-top: 1px solid var(--line); }
+.bubble { position: relative; align-self: flex-start; margin-top: 40px; max-width: 150px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; font-size: 13px; text-align: center; }
+.bubble::before { content: ""; position: absolute; left: -6px; top: 14px; transform: rotate(45deg); width: 10px; height: 10px; background: var(--card); border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.pl-stem.thin { stroke-width: 2.5; }
 .stage-rule { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin: 10px 0 4px; }
 .stage-rule span { display: flex; flex-direction: column; align-items: center; font-size: 11px; padding: 4px 7px; border-radius: 8px; border: 1px solid var(--line); color: var(--muted); }
 .stage-rule span small { font-size: 10px; }

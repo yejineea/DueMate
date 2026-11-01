@@ -284,15 +284,17 @@ describe('토마토 키우기', () => {
       ['씨앗', '새싹', '줄기', '꽃봉오리', '초록 토마토', '초록 토마토', '빨간 토마토', '빨간 토마토']);
   });
   test('토마토 표정은 단계가 높을수록 웃는다 (0단계 눈물, 5단계 볼터치)', () => {
-    ok(tomatoFace(0).includes('tf-tear') && !tomatoFace(0).includes('tf-blush'), '0단계 울상');
-    ok(tomatoFace(5).includes('tf-blush') && !tomatoFace(5).includes('tf-tear'), '5단계 활짝');
+    ok(faceParts(0).includes('tf-tear') && !faceParts(0).includes('tf-blush'), '0단계 울상');
+    ok(faceParts(5).includes('tf-blush') && !faceParts(5).includes('tf-tear'), '5단계 활짝');
+    ok([0, 3, 12, 20].every((n) => plantSvg(n, 20).includes('pl-face')), '모든 단계에서 화분 위 토마토(씨앗)에 얼굴');
+    ok(plantSvg(20, 20).includes('pl-fruit pl-main'), '빨간 토마토 단계의 대표 토마토는 빨강');
     eq(TALK.length, 6); eq(STAGE_RULE.length, 6);
   });
   test('단계마다 화분 그림이 달라진다 (열매 수·색)', () => {
     ok(!plantSvg(0, 20).includes('pl-stem'), '씨앗은 줄기 없음');
     ok(plantSvg(12, 20).includes('pl-bud'), '꽃봉오리');
     ok(plantSvg(16, 20).includes('pl-green'), '초록 토마토');
-    eq((plantSvg(20, 20).match(/pl-fruit/g) || []).length, 6, '빨간 토마토 6개');
+    eq((plantSvg(20, 20).match(/pl-fruit/g) || []).length, 7, '빨간 토마토 6개 + 표정 짓는 대표 토마토');
   });
 });
 
@@ -639,12 +641,11 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     click(cur('.pomo-ring [data-action="pomo-start"]'));
     eq(state.timer.taskId, id);
     ok($(cur('.pomo.phase-focus.running')), '원형 타이머가 집중 중');
-    ok(document.title.includes('집중'), `탭 제목: ${document.title}`);
+    ok(!document.title.includes('집중'), `탭 제목은 그대로: ${document.title}`);
   });
   test('원 안의 버튼으로 일시정지 → 재개 → 중지할 수 있다', () => {
     click(cur('.pomo-ring [data-action="pomo-pause"]'));
     eq(state.timer.endsAt, null);
-    ok(document.title.startsWith('⏸'), document.title);
     click(cur('.pomo-ring [data-action="pomo-resume"]'));
     ok(state.timer.endsAt > Date.now(), '재개 후 진행');
     click(cur('.pomo-ring [data-action="pomo-stop"]'));
@@ -677,10 +678,11 @@ describe('화면 조작 (실제 클릭·입력)', () => {
   });
   test('과제마다 타이머가 따로: 다른 과제를 시작하면 앞 과제는 남은 시간 그대로 멈추고, 돌아와 재개할 수 있다', () => {
     show('pomodoro');
-    const [a, b] = $$('.slide').map((el) => el.dataset.id);
+    const a = $('.slide.current').dataset.id;
     click(cur('[data-action="pomo-start"]'));
     eq(state.timer.taskId, a);
-    click('.car-nav.next');
+    click('.car-nav.next'); // 타이머 시작 후 오늘 계획이 다시 계산되어 슬라이드 순서가 바뀔 수 있으므로 화면에서 읽는다
+    const b = $('.slide.current').dataset.id;
     click(cur('[data-action="pomo-start"]'));
     eq(state.timer.taskId, b);
     eq(timerOf(a).endsAt, null);

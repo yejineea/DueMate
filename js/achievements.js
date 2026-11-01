@@ -34,21 +34,24 @@ const STAGES = ['씨앗', '새싹', '줄기', '꽃봉오리', '초록 토마토'
 const STAGE_RULE = ['0개', '1개~', '25%~', '50%~', '75%~', '100%'];
 const TALK = ['물 좀 주세요… 🍅 하나만요', '싹이 났어요! 조금만 더', '쑥쑥 크는 중이에요', '곧 꽃이 펴요!', '거의 다 익었어요!', '빨갛게 익었어요! 최고예요'];
 
-// 단계가 높을수록 웃는 토마토 얼굴 (0 울상 → 5 활짝)
-function tomatoFace(stage) {
-  const curve = [-7, -5, -1, 3, 6, 9][stage];           // 입꼬리: 음수면 처진 입
-  const eyeY = stage >= 4 ? 'M17 27 q4 -4 8 0 M35 27 q4 -4 8 0' : '';  // 기쁘면 웃는 눈
-  const eyes = eyeY ? `<path class="tf-line" d="${eyeY}"></path>` : '<circle class="tf-eye" cx="21" cy="27" r="2.6"></circle><circle class="tf-eye" cx="39" cy="27" r="2.6"></circle>';
-  const tear = stage === 0 ? '<path class="tf-tear" d="M41 31 q-2 4 0 6 q2 -2 0 -6"></path>' : '';
+// 표정(눈·눈썹·눈물·볼·입)만: 반지름 26, 중심 (30,34) 좌표계. 단계가 높을수록 웃는다 (0 울상 → 5 활짝)
+function faceParts(stage) {
+  const curve = [-7, -5, -1, 3, 6, 9][stage]; // 입꼬리: 음수면 처진 입
+  const eyes = stage >= 4
+    ? '<path class="tf-line" d="M17 27 q4 -4 8 0 M35 27 q4 -4 8 0"></path>'
+    : '<circle class="tf-eye" cx="21" cy="27" r="2.8"></circle><circle class="tf-eye" cx="39" cy="27" r="2.8"></circle>';
+  const tear = stage === 0 ? '<path class="tf-tear" d="M41 31 q-2.5 5 0 7 q2.5 -2 0 -7"></path>' : '';
   const brow = stage <= 1 ? '<path class="tf-line" d="M16 21 l8 2 M44 21 l-8 2"></path>' : '';
-  const blush = stage >= 3 ? '<ellipse class="tf-blush" cx="15" cy="35" rx="4" ry="2.5"></ellipse><ellipse class="tf-blush" cx="45" cy="35" rx="4" ry="2.5"></ellipse>' : '';
-  return `<svg class="tomato-face" viewBox="0 0 60 62" aria-hidden="true">
-    <circle class="tf-body" cx="30" cy="34" r="26"></circle>
-    <path class="tf-leaf" d="M30 10 L20 4 L26 12 L16 12 L26 15 L30 20 L34 15 L44 12 L34 12 L40 4 Z"></path>
-    ${brow}${eyes}${tear}${blush}
-    <path class="tf-line" d="M22 ${40 - Math.min(0, curve) / 2} q8 ${curve} 16 0"></path>
-  </svg>`;
+  const blush = stage >= 3 ? '<ellipse class="tf-blush" cx="14" cy="35" rx="4" ry="2.5"></ellipse><ellipse class="tf-blush" cx="46" cy="35" rx="4" ry="2.5"></ellipse>' : '';
+  return `${brow}${eyes}${tear}${blush}<path class="tf-line" d="M22 ${40 - Math.min(0, curve) / 2} q8 ${curve} 16 0"></path>`;
 }
+
+// 화분 위 대표 토마토(또는 씨앗)에 얼굴을 그린다
+function faceOn(x, y, r, stage) {
+  const k = r / 26;
+  return `<g class="pl-face" transform="translate(${x - 30 * k} ${y - 34 * k}) scale(${k})">${faceParts(stage)}</g>`;
+}
+
 function plantStage(count, goal) {
   const r = count / goal;
   return count === 0 ? 0 : r < 0.25 ? 1 : r < 0.5 ? 2 : r < 0.75 ? 3 : r < 1 ? 4 : 5;
@@ -59,7 +62,7 @@ function plantSvg(count, goal) {
   const r = Math.min(1, count / goal);
   const ground = 168, h = stage ? 26 + 110 * r : 0, top = ground - h;
   const parts = [];
-  if (!stage) parts.push(`<ellipse class="pl-seed" cx="100" cy="${ground - 2}" rx="6" ry="4"></ellipse>`);
+  if (!stage) parts.push(`<circle class="pl-seed" cx="100" cy="${ground - 10}" r="12"></circle>${faceOn(100, ground - 10, 12, 0)}`);
   else {
     parts.push(`<path class="pl-stem" d="M100 ${ground} Q 94 ${ground - h / 2} 100 ${top}"></path>`);
     const leaves = Math.min(6, 1 + Math.floor(r * 6));
@@ -70,7 +73,7 @@ function plantSvg(count, goal) {
     parts.push(`<ellipse class="pl-leaf" cx="93" cy="${top}" rx="9" ry="4" transform="rotate(30 93 ${top})"></ellipse>
       <ellipse class="pl-leaf" cx="107" cy="${top}" rx="9" ry="4" transform="rotate(-30 107 ${top})"></ellipse>`);
     if (stage >= 3) {
-      const spots = [[78, 0.35], [122, 0.5], [80, 0.62], [120, 0.75], [100, 0.85], [76, 0.85]];
+      const spots = [[78, 0.35], [122, 0.45], [80, 0.6], [124, 0.25], [76, 0.82], [100, 0.6]]; // 오른쪽 위는 대표 토마토 자리
       const n = stage === 3 ? 3 : stage === 4 ? 5 : 6;
       const reds = stage === 5 ? n : stage === 4 ? Math.round(((r - 0.75) / 0.25) * n) : 0;
       spots.slice(0, n).forEach(([x, f], i) => {
@@ -81,6 +84,13 @@ function plantSvg(count, goal) {
              <path class="pl-cap" d="M${x - 4} ${y - 7} L${x} ${y - 4} L${x + 4} ${y - 7}"></path>`);
       });
     }
+    // 대표 토마토: 꼭대기 오른쪽 가지에 매달려 단계별 표정을 짓는다 (빨간 토마토 단계에서만 빨강)
+    const mr = [0, 10, 12, 13, 15, 17][stage];
+    const mx = 142, my = top + Math.max(mr + 10, h * 0.22);
+    parts.push(`<path class="pl-stem thin" d="M101 ${my - mr - 12} Q ${mx - 12} ${my - mr - 16} ${mx} ${my - mr}"></path>
+      <circle class="${stage === 5 ? 'pl-fruit' : 'pl-green'} pl-main" cx="${mx}" cy="${my}" r="${mr}"></circle>
+      <path class="pl-cap" d="M${mx - 6} ${my - mr - 1} L${mx} ${my - mr + 4} L${mx + 6} ${my - mr - 1}"></path>
+      ${faceOn(mx, my, mr, stage)}`);
   }
   return `<svg class="plant" viewBox="0 0 200 220" aria-hidden="true">
     ${parts.join('')}
@@ -135,7 +145,7 @@ function renderAchievements() {
       </div>
       <div class="plant-wrap">
         ${plantSvg(thisWeek, goal)}
-        <div class="talk">${tomatoFace(stage)}<div class="bubble">${TALK[stage]}</div></div>
+        <div class="bubble">${TALK[stage]}</div>
       </div>
       <div class="plant-stage"><b>${STAGES[stage]}</b>${stage < 5 ? ` · 다음 단계까지 🍅 ${Math.max(1, nextAt - thisWeek)}개` : ' · 수확 완료! 🎉'}</div>
       <div class="stage-rule">${STAGES.map((n, i) => `<span class="${i === stage ? 'on' : i < stage ? 'past' : ''}">${n}<small>${STAGE_RULE[i]}</small></span>`).join('')}</div>

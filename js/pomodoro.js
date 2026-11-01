@@ -3,7 +3,6 @@
 // state.timer = { taskId, phase, dur, endsAt(진행 중) | left(일시정지), count(이번 세션 완료 집중 수) }
 
 const PHASES = { focus: '집중', short: '짧은 휴식', long: '긴 휴식' };
-const BASE_TITLE = document.title;
 const phaseMs = (phase) => state.settings.pomodoro[phase] * MIN;
 
 function pomoLeft(now = Date.now()) {
@@ -225,7 +224,7 @@ function renderPomoChip() {
   if (state.timer && !getTask(state.timer.taskId)) { state.timer = null; save(); }
   const chip = $('#pomo-chip');
   if (chip) chip.hidden = !state.timer || currentTab === 'pomodoro';
-  if (!state.timer) { document.title = BASE_TITLE; return; }
+  if (!state.timer) return;
   updateTimerClock();
 }
 
@@ -240,7 +239,6 @@ function updateTimerClock() {
   if (ring) ring.style.strokeDashoffset = RING_C * (left / tm.dur);
   const chip = $('#pomo-chip');
   if (chip) { chip.textContent = `🍅 ${text} ${PHASES[tm.phase]}`; chip.className = `pomo-chip phase-${tm.phase}`; }
-  document.title = `${tm.endsAt ? '' : '⏸ '}${text} ${PHASES[tm.phase]} · DueMate`;
 }
 
 setInterval(() => {
