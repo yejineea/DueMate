@@ -29,7 +29,12 @@ bash .claude/skills/browser-verify/verify.sh shot pomodoro "demo&tab=pomodoro"
 
 # 3) README용 전체 탭 스크린샷 (docs/images/v2-*.png)
 bash .claude/skills/browser-verify/verify.sh shots
+
+# 4) 휴대폰 폭(390px) 확인: 탭 3개를 나란히 한 장으로
+bash .claude/skills/browser-verify/verify.sh phone "pomodoro todo settings"
 ```
+
+- 헤드리스 Chrome은 창 너비를 약 500px보다 줄이지 못한다. `--window-size=400`으로 찍으면 500px로 그린 뒤 잘라 보여 주므로 "가로로 넘친다"고 오판하기 쉽다. 휴대폰 화면은 반드시 `phone`(390px iframe)으로 확인한다.
 
 - `test`는 실패한 테스트 이름과 메시지를 출력하고, 실패가 있으면 종료 코드 1을 돌려준다.
 - 스크린샷은 1440px 너비로 찍는다. 찍은 뒤 이미지 파일을 직접 열어 보고 레이아웃이 깨지지 않았는지 확인한다.

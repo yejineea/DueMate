@@ -32,7 +32,18 @@ shot() {
   [ -f "$out" ] && echo "saved docs/images/$name.png" || echo "screenshot failed: $name"
 }
 
+# 휴대폰 폭 확인: 헤드리스 Chrome은 창을 약 500px보다 좁게 만들지 못하므로 390px iframe 3개에 띄워 한 장으로 찍는다
+phone() {
+  local page="$ROOT/docs/images/_phone.html" out="$ROOT/docs/images/${2:-phone}.png"
+  local tabs="${1:-pomodoro todo settings}" frames=""
+  for t in $tabs; do frames="$frames<iframe style=\"width:390px;height:840px;border:0\" src=\"$BASE/index.html?demo\&tab=$t\"></iframe>"; done
+  printf '<!DOCTYPE html><body style="margin:0;display:flex;gap:12px;background:#999;padding:10px">%s</body>' "$frames" > "$page"
+  "$CHROME" --headless=new --disable-gpu --no-first-run --allow-file-access-from-files --user-data-dir="$PROFILE-phone" --hide-scrollbars     --window-size=1220,860 --virtual-time-budget=4000 --screenshot="$(cygpath -w "$out" 2>/dev/null || echo "$out")" "$BASE/docs/images/_phone.html" 2>/dev/null
+  rm -f "$page"; echo "saved docs/images/${2:-phone}.png"
+}
+
 case "${1:-test}" in
+  phone) phone "${2:-}" "${3:-phone}" ;;
   test) run_tests ;;
   shot) shot "$2" "$3" "${4:-1000}" ;;
   shots)
@@ -43,5 +54,5 @@ case "${1:-test}" in
     shot v2-grades "demo&tab=report&view=grades"
     shot v2-settings "demo&tab=settings" 1300
     ;;
-  *) echo "usage: verify.sh test | shot <name> <query> [height] | shots"; exit 2 ;;
+  *) echo "usage: verify.sh test | shot <name> <query> [height] | shots | phone ["tab tab tab"] [name]"; exit 2 ;;
 esac

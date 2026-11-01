@@ -28,7 +28,7 @@ main { max-width: 1100px; margin: 20px auto; padding: 0 16px; display: flex; fle
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
 .stat .num { font-size: 26px; font-weight: 800; color: var(--text); }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } .row { flex-direction: column; } }
+@media (max-width: 760px) { .grid2 { grid-template-columns: minmax(0, 1fr); } .row { flex-direction: column; } }
 
 .btn { border: 1px solid var(--line); background: var(--card); color: var(--text); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 14px; }
 .btn:hover { border-color: var(--red); }
@@ -238,7 +238,7 @@ main[data-current="pomodoro"] { max-width: 1320px; }
 .focus-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .focus-side .slot { grid-template-columns: 96px 1fr auto auto; }
 @media (max-width: 980px) {
-  .focus-layout { grid-template-columns: 1fr; }
+  .focus-layout { grid-template-columns: minmax(0, 1fr); } /* 1fr이면 슬라이드 전체 너비만큼 칸이 늘어나 화면 밖으로 밀림 */
   .focus-main { position: static; }
 }
 
@@ -325,3 +325,34 @@ main[data-current="pomodoro"] { max-width: 1320px; }
 .stage-rule span small { font-size: 10px; }
 .stage-rule span.past { color: var(--green-dark); border-color: var(--green-weak); background: var(--green-weak); }
 .stage-rule span.on { color: #fff; background: var(--red); border-color: var(--red); font-weight: 700; }
+
+/* 키보드 포커스 표시, 터치 기기에서 작은 버튼 키우기 */
+:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+@media (pointer: coarse) {
+  .icon-btn { width: 34px; height: 34px; font-size: 14px; }
+  .btn.xs { padding: 6px 10px; font-size: 13px; }
+}
+
+/* 휴대폰: 상단은 로고·과제 추가만, 탭은 하단 고정 바 */
+@media (max-width: 760px) {
+  body { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  .topbar { padding: 10px 14px; gap: 8px; flex-wrap: nowrap; }
+  .topbar h1 { font-size: 18px; white-space: nowrap; }
+  .topbar h1 .badge { display: none; }
+  .topbar .btn.primary { margin-left: auto; padding: 7px 12px; }
+  #tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; flex-wrap: nowrap; gap: 0; background: var(--card); border-top: 1px solid var(--line); padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px)); }
+  #tabs button { flex: 1; padding: 10px 2px; font-size: 12px; border-radius: 10px; white-space: nowrap; }
+  main { margin: 12px auto; padding: 0 12px; }
+  .panel, .card { padding: 14px; }
+  .toolbar select { flex: 1 1 140px; min-width: 0; }
+  .task-head { flex-wrap: wrap; }
+  .task-main { flex: 1 1 calc(100% - 40px); }
+  .task-actions { width: 100%; justify-content: flex-end; }
+  .meta-sub { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .plan-slot { grid-template-columns: 1fr auto !important; }
+  .plan-slot .slot-time { grid-column: 1 / -1; font-size: 13px; }
+  .pomo-ring { width: 260px; height: 260px; }
+  .slide-head h2 { font-size: 20px; }
+  .daychks { flex-wrap: wrap; }
+  .sched-form > * { flex: 1 1 auto; }
+}
