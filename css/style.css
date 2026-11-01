@@ -369,3 +369,5 @@ main[data-current="pomodoro"] { max-width: 1320px; }
 .steps li.done .step-no { background: var(--green-dark); border-color: var(--green-dark); color: #fff; }
 .steps li.done .step-text b { color: var(--muted); text-decoration: line-through; }
 .step-text { flex: 1; display: flex; flex-direction: column; }
+.target-box { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.target-box input { width: 64px; }

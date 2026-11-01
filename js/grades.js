@@ -19,6 +19,17 @@ function calcGrade(items) {
   return { errors, pending, wsum, earned, scoredW, current: scoredW ? (earned / scoredW) * 100 : null };
 }
 
+// 목표 점수까지: 남은(미입력) 항목에서 평균 몇 %를 받아야 하는지
+function neededFor(items, target) {
+  const r = calcGrade(items);
+  const pendingW = items.filter((i) => i.score === null || i.score === '').reduce((a, i) => a + Number(i.weight || 0), 0);
+  const need = target - r.earned;
+  if (need <= 0) return { status: 'done', pct: 0, pendingW };
+  if (!pendingW) return { status: 'none', pct: null, pendingW, max: r.earned };
+  const pct = (need / pendingW) * 100;
+  return { status: pct > 100 ? 'impossible' : 'possible', pct, pendingW, max: r.earned + pendingW };
+}
+
 function renderGrades() {
   const subjects = state.subjects;
   if (!gradeSubject || !subjects.includes(gradeSubject)) gradeSubject = subjects[0] || null;
@@ -59,6 +70,7 @@ function renderGrades() {
       <div class="card stat"><div class="num">${r.wsum}%</div><div>반영 비율 합계</div></div>
       <div class="card stat"><div class="num">${r.pending.length}</div><div>미입력: ${r.pending.map(esc).join(', ') || '없음'}</div></div>
     </div>
+    ${targetBox(items)}
   </section>
   <section class="panel">
     <h3>과목별 성적 현황</h3>
@@ -73,6 +85,19 @@ function renderGrades() {
       }).join('')}</tbody>
     </table>
   </section>`;
+}
+
+function targetBox(items) {
+  if (!items.length) return '';
+  const target = (state.gradeTargets || {})[gradeSubject] ?? 90;
+  const n = neededFor(items, target);
+  const msg = {
+    done: '<b class="green">이미 달성</b>',
+    possible: `남은 항목(${n.pendingW}%)에서 평균 <b class="red">${n.pct.toFixed(0)}%</b> 필요`,
+    impossible: `<b class="red">어려움</b> · 남은 항목을 만점 받아도 최대 ${n.max.toFixed(1)}점`,
+    none: `남은 항목 없음 · 최종 ${n.max.toFixed(1)}점`,
+  }[n.status];
+  return `<div class="target-box">목표 <input type="number" min="1" max="100" step="1" data-grade-target value="${target}"> 점 → ${msg}</div>`;
 }
 
 function addGrade(form) {

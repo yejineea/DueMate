@@ -115,6 +115,11 @@ document.addEventListener('change', (e) => {
   if (el.dataset.planAdd !== undefined) return planAdd(el.value);
   if (el.dataset.filter) return onFilterChange(el);
   if (el.dataset.grade) return onGradeChange(el);
+  if (el.dataset.gradeTarget !== undefined) {
+    const v = Number(el.value);
+    if (v >= 1 && v <= 100) { state.gradeTargets = { ...(state.gradeTargets || {}), [gradeSubject]: v }; save(); }
+    return render();
+  }
   if (el.dataset.setting) return onSettingChange(el);
   if (el.id === 'import-file') return importJSON(el.files[0]);
 });
@@ -141,6 +146,7 @@ if (DEMO && params.has('pomo') && recommend().length) {
   state.timer.count = 2;
 }
 
+if (DEMO && params.get('theme')) state.settings.theme = params.get('theme'); // 스크린샷용: &theme=dark
 if (DEMO) $('.topbar h1').insertAdjacentHTML('beforeend', ' <span class="badge" title="샘플 데이터로 보여주며 변경 사항은 저장되지 않습니다">데모 · 저장 안 됨</span>');
 applyTheme();
 render();

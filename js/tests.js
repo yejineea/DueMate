@@ -539,6 +539,13 @@ describe('성적 계산', () => {
     const r = calcGrade([{ id: 1, name: '중간', weight: 30, max: 100, score: 80 }, { id: 2, name: '기말', weight: 70, max: 100, score: null }]);
     near(r.earned, 24); near(r.current, 80); eq(r.pending, ['기말']); eq(r.errors, []);
   });
+  test('목표 점수까지 남은 항목에서 필요한 평균을 계산한다', () => {
+    const items = [{ id: 1, name: '과제', weight: 40, max: 100, score: 90 }, { id: 2, name: '기말', weight: 60, max: 100, score: null }];
+    const n = neededFor(items, 90); // 확보 36 → 54점을 60%에서: 90%
+    eq(n.status, 'possible'); near(n.pct, 90);
+    eq(neededFor(items, 30).status, 'done');
+    eq(neededFor(items, 99).status, 'impossible');
+  });
   test('반영 비율 합계가 100%가 아니면 오류를 낸다', () => {
     const r = calcGrade([{ id: 1, name: '중간', weight: 50, max: 100, score: 80 }]);
     eq(r.errors.length, 1);
