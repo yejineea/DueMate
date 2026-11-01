@@ -139,6 +139,9 @@ function onSettingChange(el) {
     if (!el.value) { render(); return; }
     s[key] = el.value;
     if (s.dayStart === s.dayEnd) toast('활동 시간이 24시간으로 계산됩니다');
+  } else if (key === 'calibrate') {
+    s.calibrate = el.checked;
+    toast(el.checked ? '내 기록 보정을 켰습니다' : '보정을 껐습니다 · 기본 시간 × 난이도만 사용');
   } else if (key === 'deadlineNotify') {
     s.deadlineNotify = el.checked;
     if (el.checked && 'Notification' in window && Notification.permission === 'default') {

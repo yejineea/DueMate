@@ -24,12 +24,25 @@ function futureWeeks() {
 function calibrationPanel() {
   const cal = calibration();
   const rows = Object.entries(cal.byType).filter(([, c]) => c.n);
+  const toggle = `<label class="check"><input type="checkbox" data-setting="calibrate" ${cal.off ? '' : 'checked'}> 보정 사용</label>`;
+  if (cal.off) {
+    return `<div class="cal-box"><div class="toolbar" style="margin:0"><b>내 예상 보정</b><span class="muted small">꺼짐 · 기본 시간 × 난이도만 사용</span><span class="spacer"></span>${toggle}</div></div>`;
+  }
   return `<div class="cal-box">
-    <b>내 예상 보정</b> <span class="muted small">실제 ÷ 예상 · 자동 예상 시간에 반영</span>
-    <div class="chips" style="margin-top:6px">${rows.length ? rows.map(([type, c]) => `<span class="chip-tag">${esc(type)} ×${c.ratio.toFixed(2)} <span class="muted small">(${c.n}건)</span></span>`).join('')
+    <div class="toolbar" style="margin:0"><b>내 예상 보정</b><span class="muted small">실제 ÷ 예상 · 자동 예상 시간에 반영</span><span class="spacer"></span>${toggle}</div>
+    <div class="chips" style="margin-top:6px">${rows.length ? rows.map(([type, c]) => `<span class="chip-tag">${esc(type)} ×${c.ratio.toFixed(2)} <span class="muted small">(${c.n}건)</span>
+      <button class="btn xs" data-action="calib-reset" data-type="${esc(type)}" title="이 유형의 기록을 지우고 ×1.00부터 다시">초기화</button></span>`).join('')
       : '<span class="muted small">완료 기록 없음 · 기본 ×1.00</span>'}
       <span class="chip-tag">전체 ×${cal.overall.toFixed(2)}</span></div>
   </div>`;
+}
+
+// 유형별 보정 초기화: 지금 이전에 완료한 그 유형 기록은 보정에 쓰지 않는다 (과제 기록 자체는 그대로)
+function resetCalibration(type) {
+  askConfirm(`${type} 보정 초기화`, '이전 기록은 보정에서 빠지고 ×1.00부터 다시 계산합니다 (과제 기록은 그대로)', '초기화', () => {
+    state.calibReset = { ...(state.calibReset || {}), [type]: Date.now() };
+    save(); render(); toast(`${type} 보정을 초기화했습니다`);
+  });
 }
 
 function renderStats() {
@@ -65,7 +78,7 @@ function renderStats() {
     <div class="card stat"><div class="num">${rate}%</div><div>전체 완료율 (${done.length}/${all.length})</div></div>
     <div class="card stat"><div class="num">${hours(weekMs)}h</div><div>이번 주 집중 시간</div></div>
     <div class="card stat"><div class="num ${overdue ? 'red' : ''}">${overdue}</div><div>미제출 · 지연 완료 ${late}</div></div>
-    <div class="card stat"><div class="num">×${calibration().overall.toFixed(2)}</div><div title="실제 ÷ 예상 · 1에 가까울수록 정확">예상 정확도</div></div>
+    <div class="card stat"><div class="num">${calibration().off ? '꺼짐' : `×${calibration().overall.toFixed(2)}`}</div><div title="실제 ÷ 예상 · 1에 가까울수록 정확">예상 정확도</div></div>
   </section>
   <section class="grid2">
     <div class="panel"><h3>앞으로 7일 작업량 vs 공부 가능 시간</h3>${weekChart(weekLoad(startOfDay(new Date())))}</div>

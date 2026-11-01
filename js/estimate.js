@@ -11,9 +11,14 @@ const TEMPLATE_SIZE = { 보고서: 5, 발표: 5, 코딩: 5, '시험 공부': 4, 
 const PRIOR = 2;
 const clampNum = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
+// 보정 끄기(settings.calibrate = false)면 모두 ×1. 유형별 초기화(calibReset[유형] = 시각) 이전에 완료한 기록은 쓰지 않는다
 function calibration(s = state) {
+  if (s.settings.calibrate === false) {
+    return { off: true, overall: 1, n: 0, byType: Object.fromEntries(Object.keys(BASE_HOURS).map((type) => [type, { ratio: 1, n: 0 }])) };
+  }
+  const reset = s.calibReset || {};
   const samples = s.tasks
-    .filter((t) => t.done && t.estHours > 0 && actualMs(t) > 0)
+    .filter((t) => t.done && t.estHours > 0 && actualMs(t) > 0 && (t.doneAt || 0) > (reset[t.type] || 0))
     .map((t) => ({ type: t.type, r: clampNum(actualMs(t) / HOUR / t.estHours, 0.3, 3) }));
   const shrink = (list, prior) => (list.reduce((a, x) => a + x.r, 0) + PRIOR * prior) / (list.length + PRIOR);
   const overall = clampNum(shrink(samples, 1), 0.5, 2);
@@ -46,7 +51,8 @@ function estimateFor({ type, difficulty, subCount = 0 }, s = state, cal = calibr
 function estimateBasis(e) {
   const parts = [`${e.type} 기본 ${e.base}h`, `난이도 ${e.difficulty} ×${e.diff}`];
   if (e.sub !== 1) parts.push(`하위 작업 ${e.subCount}개 ×${+e.sub.toFixed(2)}`);
-  parts.push(e.n ? `내 기록 보정 ×${e.ratio.toFixed(2)} (완료 ${e.n}건)` : `내 기록 보정 ×${e.ratio.toFixed(2)} (이 유형 기록 없음)`);
+  if (state.settings.calibrate === false) parts.push('내 기록 보정 꺼짐');
+  else parts.push(e.n ? `내 기록 보정 ×${e.ratio.toFixed(2)} (완료 ${e.n}건)` : `내 기록 보정 ×${e.ratio.toFixed(2)} (이 유형 기록 없음)`);
   return `${parts.join(' · ')} → ${e.hours}h`;
 }
 

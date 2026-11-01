@@ -11,11 +11,12 @@ function defaultState() {
     timer: null, // 지금 다루는 타이머 (진행 중이거나 방금 멈춘 것)
     notified: [], // 보낸 마감 알림 키 (같은 알림 반복 방지)
     lastBackup: null,
+    calibReset: {}, // 유형별 예상 보정 초기화 시각
     planEdit: null, // 오늘 계획 직접 수정 { date, pomos: {과제 id: 개수(0=제외)}, order: [과제 id] }
     timers: {}, // 다른 과제의 일시정지된 타이머 { 과제 id: 타이머 }
     settings: {
       hoursMode: 'auto', dayStart: '09:00', dayEnd: '00:00', lifeHours: 3, maxStudy: 8,
-      dailyHours: [2, 2, 2, 2, 2, 3, 3], alertHours: 24, deadlineNotify: true, theme: 'light', weeklyGoal: 20,
+      dailyHours: [2, 2, 2, 2, 2, 3, 3], alertHours: 24, deadlineNotify: true, theme: 'light', weeklyGoal: 20, calibrate: true,
       pomodoro: { focus: 25, short: 5, long: 15, longEvery: 4, autoFocus: false, sound: true, notify: true },
     },
   };

@@ -160,6 +160,20 @@ describe('예상 소요 시간 자동 추정', () => {
     state.tasks = [doneTask('코딩', 3, 4.5), doneTask('코딩', 4, 6)];
     near(calibration().byType['보고서'].ratio, 1.25);
   });
+  test('보정을 끄면 모든 유형이 ×1이고 예상 시간은 기본 × 난이도만 쓴다', () => {
+    fresh({ calibrate: false });
+    state.tasks = [doneTask('코딩', 3, 4.5), doneTask('코딩', 4, 6)];
+    const cal = calibration();
+    ok(cal.off, '꺼짐'); eq(cal.byType['코딩'].ratio, 1);
+    eq(estimateFor({ type: '코딩', difficulty: 3 }).hours, 5);
+  });
+  test('유형별 초기화 이전에 완료한 기록은 그 유형 보정에 쓰지 않는다', () => {
+    fresh();
+    state.tasks = [doneTask('코딩', 3, 4.5), doneTask('코딩', 4, 6), doneTask('보고서', 2, 3)];
+    state.calibReset = { 코딩: Date.now() + 1000 };
+    eq(calibration().byType['코딩'].n, 0, '코딩 초기화');
+    eq(calibration().byType['보고서'].n, 1, '보고서는 그대로');
+  });
   test('과제를 완료하면 진행 중인 자동 추정 과제만 다시 계산되고 직접 입력한 과제는 그대로다', () => {
     fresh();
     const auto = task({ type: '코딩', difficulty: 3, estAuto: true, estHours: 5 });
@@ -925,6 +939,16 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     eq(state.tasks.length, before + 1);
     click('#toast [data-action="toast-undo"]');
     ok(!t.done && state.tasks.length === before, '되돌림');
+  });
+  test('리포트에서 유형별 보정 초기화·보정 끄기를 할 수 있다', () => {
+    show('report');
+    const btn = $('[data-action="calib-reset"]');
+    const type = btn.dataset.type;
+    click('[data-action="calib-reset"]');
+    click('#modal-box [data-action="confirm-ok"]');
+    eq(calibration().byType[type].n, 0, `${type} 초기화`);
+    const box = $('[data-setting="calibrate"]'); box.checked = false; box.dispatchEvent(new Event('change', { bubbles: true }));
+    ok(calibration().off && $('.cal-box').textContent.includes('꺼짐'), '보정 꺼짐');
   });
   test('추천 이유는 문장이 아니라 태그로 보인다', () => {
     show('pomodoro');

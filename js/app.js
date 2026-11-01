@@ -40,6 +40,7 @@ const actions = {
   'fill-template': () => fillTemplate(),
   'close-modal': () => closeModal(),
   'onboard-skip': () => { state.onboardDone = true; save(); render(); },
+  'calib-reset': (el) => resetCalibration(el.dataset.type),
   'confirm-ok': () => { const fn = confirmFn; closeModal(); if (fn) fn(); },
   'pomo-start': (el) => startPomodoro(el.dataset.id),
   'pomo-pause': () => pausePomodoro(),
