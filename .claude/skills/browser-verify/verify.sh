@@ -36,7 +36,7 @@ shot() {
 phone() {
   local page="$ROOT/docs/images/_phone.html" out="$ROOT/docs/images/${2:-phone}.png"
   local tabs="${1:-pomodoro todo settings}" frames=""
-  for t in $tabs; do frames="$frames<iframe style=\"width:390px;height:840px;border:0\" src=\"$BASE/index.html?demo\&tab=$t\"></iframe>"; done
+  for t in $tabs; do frames="$frames<iframe style=\"width:390px;height:840px;border:0\" src=\"$BASE/index.html?demo&amp;tab=$t\"></iframe>"; done
   printf '<!DOCTYPE html><body style="margin:0;display:flex;gap:12px;background:#999;padding:10px">%s</body>' "$frames" > "$page"
   "$CHROME" --headless=new --disable-gpu --no-first-run --allow-file-access-from-files --user-data-dir="$PROFILE-phone" --hide-scrollbars     --window-size=1220,860 --virtual-time-budget=4000 --screenshot="$(cygpath -w "$out" 2>/dev/null || echo "$out")" "$BASE/docs/images/_phone.html" 2>/dev/null
   rm -f "$page"; echo "saved docs/images/${2:-phone}.png"
