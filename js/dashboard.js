@@ -50,11 +50,33 @@ function slideHtml(r, i, n, isPlanFirst) {
         ${priorityTags(t, p)}
       </div>
       ${pomoRing(t.id)}
+      ${stepAsk && stepAsk.taskId === t.id && next && next.id === stepAsk.sid ? `
+      <div class="step-ask">
+        <span>🍅 집중 끝! <b>'${esc(next.text)}'</b> 단계를 끝냈나요?</span>
+        <button class="btn sm primary" data-action="step-yes" data-id="${t.id}" data-sid="${next.id}">끝냈어요</button>
+        <button class="btn sm" data-action="step-no">아직이에요</button>
+      </div>` : ''}
       <div class="slide-foot">
-        ${next ? `<span class="small">다음 단계 <b>${esc(next.text)}</b></span>` : ''}
+        ${next ? `<span class="step">
+          <span class="step-count">단계 ${t.subtasks.indexOf(next) + 1}/${t.subtasks.length}</span>
+          <span class="small">다음 단계 <b>${esc(next.text)}</b></span>
+          <button class="btn xs" data-action="step-yes" data-id="${t.id}" data-sid="${next.id}" title="이 단계를 끝내고 다음 단계로">✓ 끝냄</button>
+        </span>` : t.subtasks.length ? '' : '<span class="small muted">단계 없음 · ToDo에서 하위 작업을 추가하면 단계별로 진행할 수 있어요</span>'}
         <button class="btn sm" data-action="toggle-done" data-id="${t.id}">완료 처리</button>
       </div>
     </div>`;
+}
+
+// 단계 완료: 하위 작업을 체크하고 다음 단계로 (마지막 단계면 과제 완료)
+let stepAsk = null; // 집중이 끝난 직후 "이 단계 끝냈나요?"를 물을 과제·단계
+function stepDone(id, sid) {
+  stepAsk = null;
+  const t = getTask(id);
+  const s = t && t.subtasks.find((x) => x.id === sid);
+  if (!s || s.done) return render();
+  toggleSub(id, sid);
+  const next = t.subtasks.find((x) => !x.done);
+  if (next) toast(`'${s.text}' 완료 → 다음 단계: ${next.text}`);
 }
 
 function carousel(slides, firstPlanned) {

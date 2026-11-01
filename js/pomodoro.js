@@ -95,6 +95,13 @@ function pomoStop(now = Date.now()) {
   return ms;
 }
 
+// 집중을 마친 과제에 남은 단계가 있으면 "이 단계 끝냈나요?"를 슬라이드에 띄운다
+function askStep(taskId) {
+  const t = getTask(taskId);
+  const next = t && t.subtasks.find((s) => !s.done);
+  stepAsk = next ? { taskId, sid: next.id } : null;
+}
+
 const todayPomos = () => state.tasks.reduce((a, t) => a + pomoCount(t, ymd(new Date())), 0);
 
 // ---- 화면 · 알림 ----
@@ -241,6 +248,7 @@ setInterval(() => {
   if (!tm) return;
   if (tm.endsAt && Date.now() >= tm.endsAt) {
     const ev = pomoAdvance();
+    if (ev.from === 'focus') askStep(tm.taskId);
     save();
     notifyPhase(ev);
     const typing = document.activeElement && document.activeElement.matches('input, textarea, select');

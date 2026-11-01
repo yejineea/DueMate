@@ -693,6 +693,41 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     eq(state.settings.weeklyGoal, 30);
     ok($('#view').textContent.includes('/ 30개'), '목표 반영');
   });
+  test('슬라이드에 단계 n/전체와 ✓ 끝냄 버튼이 있고, 누르면 다음 단계로 넘어간다', () => {
+    show('pomodoro');
+    const t = state.tasks.find((x) => !x.done && x.subtasks.some((s) => s.done) && x.subtasks.some((s) => !s.done));
+    pickTask(t.id);
+    const before = t.subtasks.filter((s) => s.done).length;
+    ok($(cur('.step-count')).textContent === `단계 ${before + 1}/${t.subtasks.length}`, $(cur('.step-count')).textContent);
+    click(cur('.slide-foot [data-action="step-yes"]'));
+    eq(t.subtasks.filter((s) => s.done).length, before + 1);
+    ok($(cur('.step-count')).textContent.startsWith(`단계 ${before + 2}/`), $(cur('.step-count')).textContent);
+    focusPick = null;
+  });
+  test('집중을 마치면 "이 단계 끝냈나요?"를 묻고, 끝냈어요를 누르면 단계가 체크된다', () => {
+    show('pomodoro');
+    const t = state.tasks.find((x) => !x.done && x.subtasks.some((s) => !s.done));
+    pickTask(t.id);
+    const next = t.subtasks.find((s) => !s.done);
+    startPomodoro(t.id);
+    state.timer.endsAt = Date.now() - 1000;
+    pomoAdvance(); askStep(t.id); render();
+    ok($(cur('.step-ask')).textContent.includes(next.text), '질문 표시');
+    click(cur('.step-ask [data-action="step-yes"]'));
+    ok(next.done, '단계 체크됨');
+    ok(!$(cur('.step-ask')), '질문 사라짐');
+    stopTimerOf(t.id); focusPick = null;
+  });
+  test('아직이에요를 누르면 단계는 그대로이고 질문만 닫힌다', () => {
+    show('pomodoro');
+    const t = state.tasks.find((x) => !x.done && x.subtasks.some((s) => !s.done));
+    pickTask(t.id);
+    const next = t.subtasks.find((s) => !s.done);
+    askStep(t.id); render();
+    click(cur('.step-ask [data-action="step-no"]'));
+    ok(!next.done && !$(cur('.step-ask')), '그대로');
+    focusPick = null;
+  });
   test('추천 이유는 문장이 아니라 태그로 보인다', () => {
     show('pomodoro');
     ok($$(cur('.tags .tag')).length >= 2, '태그 표시');

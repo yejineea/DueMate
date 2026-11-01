@@ -21,6 +21,8 @@ const actions = {
   'toggle-done': (el) => toggleDone(el.dataset.id),
   'toggle-open': (el) => { const id = el.dataset.id; taskUI.open.has(id) ? taskUI.open.delete(id) : taskUI.open.add(id); render(); },
   'toggle-sub': (el) => toggleSub(el.dataset.id, el.dataset.sid),
+  'step-yes': (el) => stepDone(el.dataset.id, el.dataset.sid),
+  'step-no': () => { stepAsk = null; render(); },
   'edit-sub': (el) => editSub(el.dataset.id, el.dataset.sid),
   'del-sub': (el) => delSub(el.dataset.id, el.dataset.sid),
   'fill-template': () => fillTemplate(),
