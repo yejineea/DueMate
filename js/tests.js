@@ -564,6 +564,12 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     eq($('.slide.current').dataset.id, btn.dataset.id);
     focusPick = null;
   });
+  test('넓은 화면에서는 왼쪽 타이머, 오른쪽 오늘 계획·목록으로 나뉜다', () => {
+    show('pomodoro');
+    ok($('.focus-layout .focus-main .carousel'), '왼쪽 슬라이드');
+    ok($('.focus-layout .focus-side .slots') && $('.focus-side .pomo-settings'), '오른쪽 계획·설정');
+    ok(!$('.car-hint'), '안내 문구 없음');
+  });
   test('추천 이유는 문장이 아니라 태그로 보인다', () => {
     show('pomodoro');
     ok($$(cur('.tags .tag')).length >= 2, '태그 표시');

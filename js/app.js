@@ -5,6 +5,7 @@ let currentTab = TAB_ALIAS[params.get('tab')] || (VIEWS[params.get('tab')] ? par
 function render() {
   const fn = window[VIEWS[currentTab]];
   $('#view').innerHTML = typeof fn === 'function' ? fn() : '<section class="panel"><p class="empty">준비 중인 기능입니다.</p></section>';
+  $('#view').dataset.current = currentTab; // data-tab은 탭 버튼 클릭 판정에 쓰이므로 다른 이름 사용
   $$('#tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === currentTab));
   renderPomoChip();
 }

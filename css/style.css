@@ -193,7 +193,6 @@ input, select, textarea { font: inherit; color: var(--text); background: var(--b
 .car-dots { display: flex; justify-content: center; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
 .dot { width: 8px; height: 8px; border-radius: 4px; border: 0; padding: 0; background: var(--line); cursor: pointer; transition: width .2s; }
 .dot.on { width: 22px; background: var(--primary); }
-.car-hint { text-align: center; margin: 8px 0 0; }
 /* 짧은 태그 */
 .tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; }
 .task-detail .tags { justify-content: flex-start; }
@@ -222,4 +221,15 @@ input, select, textarea { font: inherit; color: var(--text); background: var(--b
   .carousel { padding: 14px 8px 12px; }
   .car-nav { display: none; }
   .pomo-time { font-size: 44px; }
+}
+
+/* 뽀모도로 탭 좌우 배치 */
+main[data-current="pomodoro"] { max-width: 1320px; }
+.focus-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.focus-main { position: sticky; top: 76px; }
+.focus-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.focus-side .slot { grid-template-columns: 96px 1fr auto auto; }
+@media (max-width: 980px) {
+  .focus-layout { grid-template-columns: 1fr; }
+  .focus-main { position: static; }
 }

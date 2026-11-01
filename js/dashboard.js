@@ -69,7 +69,6 @@ function carousel(slides, firstPlanned) {
     </div>
     <button class="car-nav next" data-action="slide" data-dir="1" aria-label="다음 과제" ${curSlide === n - 1 ? 'disabled' : ''}>›</button>
     <div class="car-dots">${slides.map((r, i) => `<button class="dot ${i === curSlide ? 'on' : ''}" data-action="slide-to" data-i="${i}" title="${esc(r.t.title)}"></button>`).join('')}</div>
-    <p class="car-hint muted small">밀어서 · ‹ › · ← → 로 과제 변경 · 타이머는 과제별로 따로 (다른 과제 시작 시 자동 일시정지)</p>
   </section>`;
 }
 
@@ -135,7 +134,7 @@ function planPanel(tp) {
     <p class="muted small" style="margin-bottom:0">🍅 1개 = ${pm.focus}분 집중 + ${pm.short}분 휴식 · 오늘 몫(마감까지 고르게 나눈 양)을 먼저, 남는 시간은 우선순위 순으로 배정</p></section>`;
 }
 
-// 뽀모도로 탭: 과제 슬라이드(가운데 타이머) → 오늘 계획 → 핵심 경고 → 7일 내 마감 → 뽀모도로 설정
+// 뽀모도로 탭: 왼쪽 과제 슬라이드(가운데 타이머) | 오른쪽 오늘 계획 → 핵심 경고 → 7일 내 마감 → 뽀모도로 설정
 function renderFocus() {
   const all = state.tasks;
   const recs = recommend();
@@ -162,11 +161,16 @@ function renderFocus() {
   const alerts = buildAlerts(weekLoad(startOfDay(now)), shownId);
   const shown = alerts.slice(0, 3);
 
+  // 왼쪽: 과제 슬라이드와 타이머(스크롤해도 고정) / 오른쪽: 오늘 계획·경고·7일 내 마감·뽀모도로 설정
   return `
-  ${carousel(slides, tp.slots.length ? tp.slots[0].t : null)}
-  ${planPanel(tp)}
-  ${shown.length ? `<section class="alerts">${shown.map((a) => `<div class="alert ${a.type}">${a.msg}</div>`).join('')}
-    ${alerts.length > shown.length ? `<div class="muted small">외 경고 ${alerts.length - shown.length}건 · 리포트 탭에서 주간 작업량 확인</div>` : ''}</section>` : ''}
-  <section class="panel"><h3>7일 내 마감</h3>${miniList(upcoming)}</section>
-  ${pomodoroSection()}`;
+  <div class="focus-layout">
+    <div class="focus-main">${carousel(slides, tp.slots.length ? tp.slots[0].t : null)}</div>
+    <div class="focus-side">
+      ${planPanel(tp)}
+      ${shown.length ? `<section class="alerts">${shown.map((a) => `<div class="alert ${a.type}">${a.msg}</div>`).join('')}
+        ${alerts.length > shown.length ? `<div class="muted small">외 경고 ${alerts.length - shown.length}건 · 리포트 탭에서 주간 작업량 확인</div>` : ''}</section>` : ''}
+      <section class="panel"><h3>7일 내 마감</h3>${miniList(upcoming)}</section>
+      ${pomodoroSection()}
+    </div>
+  </div>`;
 }
