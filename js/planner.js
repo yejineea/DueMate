@@ -64,6 +64,7 @@ function planToday(now = Date.now(), recs = recommend(now)) {
 
 // ---- 직접 수정 ----
 function editPlan(fn) {
+  slideKeep = null; // 계획을 바꾸면 슬라이드 순서도 새 계획대로
   const e = planEditFor();
   state.planEdit = { date: e.date, pomos: { ...e.pomos }, order: [...e.order] };
   fn(state.planEdit, planToday());
@@ -87,7 +88,7 @@ function planMove(id, dir) {
     e.order = ids;
   });
 }
-function planReset() { state.planEdit = null; save(); render(); toast('오늘 계획을 자동 계산으로 되돌렸습니다'); }
+function planReset() { state.planEdit = null; slideKeep = null; save(); render(); toast('오늘 계획을 자동 계산으로 되돌렸습니다'); }
 
 // 뽀모도로를 빈 시간 구간에 차례로 배치. 같은 과제가 이어지면 한 슬롯으로 묶는다.
 function layoutSlots(items, now = Date.now()) {

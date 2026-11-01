@@ -632,7 +632,7 @@ describe('화면 조작 (실제 클릭·입력)', () => {
   window.confirm = () => true;
   const click = (sel) => { const el = $(sel); if (!el) throw new Error(`${sel} 없음`); el.click(); };
   const change = (sel, value) => { const el = $(sel); el.value = value; el.dispatchEvent(new Event('change', { bubbles: true })); };
-  function show(tab) { state = sampleState(); focusPick = null; currentTab = tab; render(); }
+  function show(tab) { state = sampleState(); focusPick = null; slideKeep = null; currentTab = tab; render(); }
 
   const cur = (sel = '') => `.slide.current ${sel}`;
   test('가운데 큰 원 안의 시작 버튼을 누르면 보고 있는 과제의 뽀모도로가 시작된다', () => {
@@ -694,6 +694,13 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     eq(state.timer.taskId, a);
     eq(timerOf(b).endsAt, null);
     stopTimerOf(a); stopTimerOf(b);
+  });
+  test('타이머를 시작해도 슬라이드 순서는 그대로다', () => {
+    show('pomodoro');
+    const before = $$('.slide').map((el) => el.dataset.id);
+    click('.slide.current [data-action="pomo-start"]');
+    eq($$('.slide').map((el) => el.dataset.id), before);
+    pomoStop();
   });
   test('ToDo 탭에서 시작하면 뽀모도로 탭의 그 과제 슬라이드로 이동한다', () => {
     show('todo');

@@ -28,6 +28,7 @@ function buildAlerts(wk, skipId) {
 
 // ---- 과제 슬라이드: 옆으로 넘겨 과제를 바꾼다. 각 슬라이드 가운데에 그 과제의 타이머가 있다 ----
 let slideIds = [];
+let slideKeep = null; // { date, ids } 그날의 슬라이드 순서
 let curSlide = 0;
 
 // 슬라이드 순서: 오늘 계획에 들어간 과제(시간 순) → 나머지 과제(우선순위 순)
@@ -197,8 +198,14 @@ function renderFocus() {
   }
   const now = new Date();
   const tp = planToday(Date.now(), recs);
-  const slides = slideOrder(recs, tp);
-  slideIds = slides.map((r) => r.t.id);
+  // 슬라이드 순서는 그날 처음 정한 순서로 고정 (타이머 시작으로 계획이 다시 계산돼도 섞이지 않게).
+  // 완료된 과제는 빠지고 새 과제는 뒤에 붙는다. 오늘 계획을 직접 고치면 다시 정한다.
+  const fresh = slideOrder(recs, tp).map((r) => r.t.id);
+  const day = ymd(activeDay());
+  if (!slideKeep || slideKeep.date !== day) slideKeep = { date: day, ids: fresh };
+  else slideKeep.ids = [...slideKeep.ids.filter((id) => fresh.includes(id)), ...fresh.filter((id) => !slideKeep.ids.includes(id))];
+  const slides = slideKeep.ids.map((id) => recs.find((r) => r.t.id === id));
+  slideIds = slideKeep.ids;
   // 보고 있던 과제 > 진행 중인 타이머의 과제 > 첫 슬라이드(오늘 계획 첫 과제)
   const want = [focusPick, state.timer && state.timer.taskId].find((id) => id && slideIds.includes(id));
   curSlide = want ? slideIds.indexOf(want) : 0;
