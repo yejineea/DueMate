@@ -8,7 +8,8 @@ function defaultState() {
     subjects: [],
     schedule: [],
     grades: {},
-    timer: null,
+    timer: null, // 지금 다루는 타이머 (진행 중이거나 방금 멈춘 것)
+    timers: {}, // 다른 과제의 일시정지된 타이머 { 과제 id: 타이머 }
     settings: {
       hoursMode: 'auto', dayStart: '09:00', dayEnd: '00:00', lifeHours: 3, maxStudy: 8,
       dailyHours: [2, 2, 2, 2, 2, 3, 3], alertHours: 24, theme: 'light',
@@ -32,6 +33,8 @@ function normalize(data) {
     if (t && ms >= 1000) t.logs = [...t.logs, { date: ymd(new Date()), ms }];
     s.timer = null;
   }
+  // 없어졌거나 완료된 과제의 보관 타이머 정리
+  s.timers = Object.fromEntries(Object.entries(s.timers || {}).filter(([id]) => s.tasks.some((t) => t.id === id && !t.done)));
   rollSample(s);
   refreshAutoEstimates(s);
   return s;

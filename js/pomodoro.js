@@ -63,18 +63,26 @@ function pomoAdvance(now = Date.now()) {
   return { from, to: tm.phase, logged };
 }
 
-// 과제 전환: 지금까지 집중한 시간은 이전 과제에 기록하고, 남은 시간은 새 과제의 집중으로 이어 간다
-function pomoSwitch(taskId, now = Date.now()) {
-  const tm = state.timer;
-  if (!tm || tm.taskId === taskId) return 0;
-  let ms = 0;
-  if (tm.phase === 'focus') {
-    const left = pomoLeft(now);
-    ms = logFocus(tm.taskId, tm.dur - left, now, false);
-    tm.dur = left;
-    if (!tm.endsAt) tm.left = left;
-  }
-  tm.taskId = taskId;
+// 과제별 타이머: 각 과제는 자기 타이머를 가진다. 다른 과제를 시작하면 지금 타이머는 남은 시간 그대로
+// 일시정지되어 보관(state.timers)되고, 그 과제로 돌아와 재개하면 이어서 진행된다. 동시에 도는 타이머는 하나뿐이다.
+const timerOf = (id) => (state.timer && state.timer.taskId === id ? state.timer : state.timers[id] || null);
+
+function activateTimer(id, now = Date.now()) {
+  const cur = state.timer;
+  if (cur && cur.taskId === id) return cur;
+  if (cur) { pomoPause(now); state.timers[cur.taskId] = cur; }
+  state.timer = state.timers[id] || null;
+  delete state.timers[id];
+  return state.timer;
+}
+
+// 특정 과제의 타이머 중지 (보관 중인 타이머도). 진행 중인 다른 과제 타이머에는 영향 없음
+function stopTimerOf(id, now = Date.now()) {
+  if (state.timer && state.timer.taskId === id) return pomoStop(now);
+  const tm = state.timers[id];
+  if (!tm) return 0;
+  const ms = tm.phase === 'focus' ? logFocus(id, tm.dur - tm.left, now, false) : 0;
+  delete state.timers[id];
   return ms;
 }
 
@@ -131,80 +139,77 @@ function notifyPhase(ev) {
   }
 }
 
-// 시작하면 원형 타이머가 있는 뽀모도로 탭으로 이동한다. 다른 과제가 진행 중이면 남은 시간을 이어서 전환한다.
+// 시작·재개: 그 과제의 타이머를 꺼내 진행 (다른 과제 타이머는 일시정지해 보관). 뽀모도로 탭으로 이동한다.
 function startPomodoro(id) {
-  const tm = state.timer;
-  if (tm && tm.taskId === id) pomoResume();
-  else if (tm) switchTask(id, false);
+  const prev = state.timer && state.timer.endsAt && state.timer.taskId !== id ? getTask(state.timer.taskId) : null;
+  if (activateTimer(id)) pomoResume();
   else pomoBegin(id);
+  if (prev) toast(`'${prev.title}' 타이머는 남은 시간 그대로 일시정지해 두었습니다`);
   focusPick = id;
   primeAlerts();
   currentTab = 'pomodoro';
   save(); render();
 }
 
-let focusPick = null; // 뽀모도로 탭에서 사용자가 고른 과제 (없으면 오늘 계획 첫 슬롯)
+let focusPick = null; // 뽀모도로 탭에서 보고 있는 과제 (없으면 오늘 계획 첫 과제)
 
-function switchTask(id, rerender = true) {
-  const ms = pomoSwitch(id);
-  toast(ms ? `이전 과제에 ${Math.round(ms / MIN)}분을 기록하고, 남은 시간은 이 과제로 이어 갑니다` : '남은 시간을 이 과제로 이어 갑니다');
-  if (rerender) { save(); render(); }
-}
-
-// 과제 선택: 타이머가 돌고 있으면 바로 전환, 아니면 시작할 과제로 지정
 function pickTask(id) {
   if (!id) return;
-  if (state.timer && state.timer.taskId !== id) switchTask(id, false);
   focusPick = id;
   currentTab = 'pomodoro';
-  save(); render();
+  render();
 }
 
 function pausePomodoro() { pomoPause(); save(); render(); }
-function resumePomodoro() { pomoResume(); primeAlerts(); save(); render(); }
+function resumePomodoro(id) { startPomodoro(id || state.timer.taskId); }
 function skipBreak() { pomoAdvance(); save(); render(); }
 
-function stopPomodoro() {
-  const ms = pomoStop();
+function stopPomodoro(id) {
+  const ms = stopTimerOf(id || (state.timer && state.timer.taskId));
   if (ms) toast(`집중한 ${Math.round(ms / MIN)}분이 기록되었습니다`);
   save(); render();
 }
 
-const RING_C = 2 * Math.PI * 54;
+const RING_R = 118, RING_C = 2 * Math.PI * RING_R, OUTER_R = 134, OUTER_C = 2 * Math.PI * OUTER_R;
 
-// "지금 할 일" 카드 오른쪽의 원형 타이머와 시작·일시정지·중지 버튼
+// 과제 슬라이드 가운데의 큰 원형 타이머. 버튼은 원 안에 있고, 바깥 얇은 링은 그 과제의 '기록 ÷ 예상' 진행률이다.
 function pomoRing(taskId) {
   const pm = state.settings.pomodoro;
-  const tm = state.timer && state.timer.taskId === taskId ? state.timer : null;
+  const t = getTask(taskId);
+  const tm = timerOf(taskId);
   const phase = tm ? tm.phase : 'focus';
   const dur = tm ? tm.dur : phaseMs('focus');
-  const left = tm ? pomoLeft() : dur;
+  const left = tm ? (tm === state.timer ? pomoLeft() : tm.left) : dur;
   const running = !!(tm && tm.endsAt);
   const waiting = tm && phase === 'focus' && !running && tm.left === tm.dur && tm.count > 0;
   const label = !tm ? `${pm.focus}분 집중`
-    : `${PHASES[phase]}${phase === 'focus' ? ` · ${tm.count + 1}회차` : ''}${running || waiting ? '' : ' · 일시정지'}`;
-  let buttons = `<button class="btn primary" data-action="pomo-start" data-id="${taskId}">▶ 시작</button>`;
+    : running ? (phase === 'focus' ? `집중 · ${tm.count + 1}회차` : PHASES[phase])
+    : waiting ? '휴식 끝' : `${PHASES[phase]} · 일시정지`;
+  const btn = (action, text, main = false) => `<button class="ring-btn ${main ? 'main' : ''}" data-action="${action}" data-id="${taskId}">${text}</button>`;
+  let buttons = btn('pomo-start', '▶ 시작', true);
   if (tm) {
-    const main = running
-      ? (phase === 'focus' ? '<button class="btn" data-action="pomo-pause">일시정지</button>'
-        : '<button class="btn" data-action="pomo-skip">휴식 건너뛰기</button>')
-      : `<button class="btn primary" data-action="pomo-resume">▶ ${waiting ? '집중 시작' : '재개'}</button>`;
-    buttons = `${main}<button class="btn danger" data-action="pomo-stop">중지</button>`;
+    buttons = running
+      ? (phase === 'focus' ? btn('pomo-pause', '❚❚ 일시정지') : btn('pomo-skip', '⏭ 건너뛰기')) + btn('pomo-stop', '■ 중지')
+      : btn('pomo-resume', waiting ? '▶ 집중 시작' : '▶ 재개', true) + btn('pomo-stop', '■ 중지');
   }
+  const doneH = actualMs(t) / HOUR;
+  const prog = t.estHours > 0 ? Math.min(1, doneH / t.estHours) : 0;
   return `
-    <div class="pomo phase-${tm ? phase : 'idle'}">
+    <div class="pomo phase-${tm ? phase : 'idle'} ${running ? 'running' : ''}">
       <div class="pomo-ring">
-        <svg viewBox="0 0 120 120" aria-hidden="true">
-          <circle class="ring-bg" cx="60" cy="60" r="54"></circle>
-          <circle id="timer-ring" class="ring-fg" cx="60" cy="60" r="54" stroke-dasharray="${RING_C}" stroke-dashoffset="${RING_C * (left / dur)}"></circle>
+        <svg viewBox="0 0 280 280" aria-hidden="true">
+          <circle class="ring-outer-bg" cx="140" cy="140" r="${OUTER_R}"></circle>
+          <circle class="ring-outer" cx="140" cy="140" r="${OUTER_R}" stroke-dasharray="${OUTER_C}" stroke-dashoffset="${OUTER_C * (1 - prog)}"></circle>
+          <circle class="ring-bg" cx="140" cy="140" r="${RING_R}"></circle>
+          <circle class="ring-fg" data-ring-fg="${taskId}" cx="140" cy="140" r="${RING_R}" stroke-dasharray="${RING_C}" stroke-dashoffset="${RING_C * (left / dur)}"></circle>
         </svg>
         <div class="pomo-center">
-          <span id="timer-time" class="pomo-time">${fmtClock(left)}</span>
           <span class="pomo-label">${label}</span>
+          <span class="pomo-time" data-ring-time="${taskId}">${fmtClock(left)}</span>
+          <div class="ring-btns">${buttons}</div>
         </div>
       </div>
-      <div class="pomo-buttons">${buttons}</div>
-      <div class="muted small">오늘 완료 🍅 ${todayPomos()}</div>
+      <div class="pomo-meta">🍅 ${pomoCount(t)}회 · 기록 ${hours(actualMs(t))}h / 예상 ${t.estHours}h${t.estAuto ? ' (자동)' : ''}</div>
     </div>`;
 }
 
@@ -222,9 +227,9 @@ function updateTimerClock() {
   if (!tm) return;
   const left = pomoLeft();
   const text = fmtClock(left);
-  const el = $('#timer-time');
+  const el = $(`[data-ring-time="${tm.taskId}"]`);
   if (el) el.textContent = text;
-  const ring = $('#timer-ring');
+  const ring = $(`[data-ring-fg="${tm.taskId}"]`);
   if (ring) ring.style.strokeDashoffset = RING_C * (left / tm.dur);
   const chip = $('#pomo-chip');
   if (chip) { chip.textContent = `🍅 ${text} ${PHASES[tm.phase]}`; chip.className = `pomo-chip phase-${tm.phase}`; }

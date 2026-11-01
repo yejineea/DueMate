@@ -107,7 +107,7 @@ function taskDetail(t) {
       </form>
     </div>
     <div>
-      ${t.done ? '' : `<h4>추천 이유</h4><p class="small">${esc(priorityText(t))}</p>`}
+      ${t.done ? '' : `<h4>추천 이유</h4>${priorityTags(t)}`}
       <p class="small muted">중요도 ${'★'.repeat(t.importance)}${'☆'.repeat(5 - t.importance)} · 난이도 ${t.difficulty}/5 · ${esc(t.type)}</p>
       <h4>설명</h4><p class="pre small">${esc(t.desc) || '—'}</p>
       <h4>메모</h4><p class="pre small">${esc(t.memo) || '—'}</p>
@@ -226,6 +226,7 @@ function deleteTask(id) {
   const t = getTask(id);
   if (!t || !confirm(`'${t.title}' 과제를 삭제할까요?`)) return;
   if (state.timer && state.timer.taskId === id) state.timer = null;
+  delete state.timers[id];
   state.tasks = state.tasks.filter((x) => x.id !== id);
   save(); closeModal(); render(); toast('삭제되었습니다');
 }
@@ -234,7 +235,7 @@ function toggleDone(id) {
   const t = getTask(id);
   t.done = !t.done;
   t.doneAt = t.done ? Date.now() : null;
-  if (t.done && state.timer && state.timer.taskId === id) pomoStop();
+  if (t.done) stopTimerOf(id);
   save(); render();
 }
 

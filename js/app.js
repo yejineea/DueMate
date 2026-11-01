@@ -26,9 +26,11 @@ const actions = {
   'close-modal': () => closeModal(),
   'pomo-start': (el) => startPomodoro(el.dataset.id),
   'pomo-pause': () => pausePomodoro(),
-  'pomo-resume': () => resumePomodoro(),
+  'pomo-resume': (el) => resumePomodoro(el.dataset.id),
   'pomo-skip': () => skipBreak(),
-  'pomo-stop': () => stopPomodoro(),
+  'pomo-stop': (el) => stopPomodoro(el.dataset.id),
+  slide: (el) => goSlide(curSlide + Number(el.dataset.dir)),
+  'slide-to': (el) => goSlide(Number(el.dataset.i)),
   'cal-prev': () => calMove(-1),
   'cal-next': () => calMove(1),
   'cal-today': () => calToday(),
@@ -84,14 +86,19 @@ document.addEventListener('input', (e) => { if (e.target.form && e.target.form.d
 document.addEventListener('change', (e) => {
   const el = e.target;
   if (el.form && el.form.dataset.form === 'task') return onTaskFormInput(el);
-  if (el.dataset.pick !== undefined) return pickTask(el.value);
   if (el.dataset.filter) return onFilterChange(el);
   if (el.dataset.grade) return onGradeChange(el);
   if (el.dataset.setting) return onSettingChange(el);
   if (el.id === 'import-file') return importJSON(el.files[0]);
 });
 
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') return closeModal();
+  const typing = document.activeElement && document.activeElement.matches('input, textarea, select');
+  if (currentTab === 'pomodoro' && !typing && $('#modal').classList.contains('hidden') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    goSlide(curSlide + (e.key === 'ArrowRight' ? 1 : -1));
+  }
+});
 
 // 남은 시간 표시 갱신 (입력 중이거나 모달이 열려 있으면 건너뜀)
 setInterval(() => {

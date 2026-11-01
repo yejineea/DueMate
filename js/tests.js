@@ -302,31 +302,63 @@ describe('뽀모도로', () => {
   state.timer = null;
 });
 
-describe('과제 전환', () => {
-  test('집중 중에 바꾸면 지금까지 시간은 이전 과제에, 남은 시간은 새 과제의 집중으로 이어진다', () => {
+describe('과제별 타이머', () => {
+  function two() {
     fresh();
     state.tasks = [task({ title: 'A' }), task({ title: 'B' })];
-    const [a, b] = state.tasks;
-    const T0 = at(0, '14:00');
+    return state.tasks;
+  }
+  const T0 = at(0, '14:00');
+  test('B를 시작하면 진행 중이던 A는 남은 시간 그대로 일시정지되어 보관된다', () => {
+    const [a, b] = two();
     pomoBegin(a.id, T0);
-    eq(pomoSwitch(b.id, T0 + 10 * MIN), 10 * MIN);
+    activateTimer(b.id, T0 + 10 * MIN);
+    pomoBegin(b.id, T0 + 10 * MIN);
     eq(state.timer.taskId, b.id);
-    eq(pomoLeft(T0 + 10 * MIN), 15 * MIN);
-    pomoAdvance(T0 + 25 * MIN);
-    eq(a.logs.map((l) => [l.ms, !!l.pomo]), [[10 * MIN, false]]);
-    eq(b.logs.map((l) => [l.ms, !!l.pomo]), [[15 * MIN, true]]);
-    state.timer = null;
+    eq(timerOf(a.id).left, 15 * MIN);
+    eq(timerOf(a.id).endsAt, null);
+    eq(a.logs.length, 0);
+    state.timer = null; state.timers = {};
   });
-  test('휴식 중에 바꾸면 기록 없이 과제만 바뀐다', () => {
-    fresh();
-    state.tasks = [task({ title: 'A' }), task({ title: 'B' })];
-    const [a, b] = state.tasks;
-    pomoBegin(a.id, at(0, '14:00'));
-    pomoAdvance(at(0, '14:25'));
-    const logs = a.logs.length;
-    eq(pomoSwitch(b.id, at(0, '14:27')), 0);
-    eq([state.timer.taskId, state.timer.phase, a.logs.length], [b.id, 'short', logs]);
-    state.timer = null;
+  test('A로 돌아와 재개하면 남은 15분부터 이어지고, B는 보관된다', () => {
+    const [a, b] = two();
+    pomoBegin(a.id, T0);
+    activateTimer(b.id, T0 + 10 * MIN); pomoBegin(b.id, T0 + 10 * MIN);
+    activateTimer(a.id, T0 + 20 * MIN); pomoResume(T0 + 20 * MIN);
+    eq(state.timer.taskId, a.id);
+    eq(pomoLeft(T0 + 20 * MIN), 15 * MIN);
+    eq(timerOf(b.id).left, 15 * MIN);
+    pomoAdvance(T0 + 35 * MIN);
+    eq(a.logs.map((l) => [l.ms, l.pomo]), [[25 * MIN, 1]]);
+    eq(b.logs.length, 0);
+    state.timer = null; state.timers = {};
+  });
+  test('보관 중인 B를 중지하면 B에 집중한 시간만 기록되고 진행 중인 A는 그대로다', () => {
+    const [a, b] = two();
+    pomoBegin(b.id, T0);
+    activateTimer(a.id, T0 + 10 * MIN); pomoBegin(a.id, T0 + 10 * MIN);
+    eq(stopTimerOf(b.id, T0 + 12 * MIN), 10 * MIN);
+    eq(timerOf(b.id), null);
+    ok(state.timer.endsAt, 'A 계속 진행');
+    state.timer = null; state.timers = {};
+  });
+  test('완료한 과제의 보관 타이머는 다시 불러올 때 정리된다', () => {
+    const [a, b] = two();
+    b.done = true;
+    const s2 = normalize({ tasks: [a, b], timers: { [b.id]: { taskId: b.id, phase: 'focus', dur: 25 * MIN, endsAt: null, left: 5 * MIN, count: 0 } } });
+    eq(Object.keys(s2.timers), []);
+  });
+});
+
+describe('추천 이유 태그', () => {
+  test('문장 대신 짧은 태그와 판정을 만든다', () => {
+    fresh({ maxStudy: 12 });
+    const p = priorityOf(task({ estHours: 10, importance: 5, difficulty: 4, due: `${ymd(MON)}T23:00` }), at(0, '18:00'));
+    const texts = p.tags.map(([text]) => text);
+    eq(texts[0], '5시간 남음');
+    ok(texts.some((x) => x.startsWith('시간 부족')), texts.join());
+    ok(texts.includes('중요도 높음') && texts.includes('난이도 높음'), texts.join());
+    eq(texts[texts.length - 1], '우선 처리');
   });
 });
 
@@ -446,33 +478,76 @@ describe('화면 조작 (실제 클릭·입력)', () => {
   window.confirm = () => true;
   const click = (sel) => { const el = $(sel); if (!el) throw new Error(`${sel} 없음`); el.click(); };
   const change = (sel, value) => { const el = $(sel); el.value = value; el.dispatchEvent(new Event('change', { bubbles: true })); };
-  function show(tab) { state = sampleState(); currentTab = tab; render(); }
+  function show(tab) { state = sampleState(); focusPick = null; currentTab = tab; render(); }
 
-  test('지금 할 일 옆 원형 타이머의 시작 버튼을 누르면 그 과제의 뽀모도로가 시작된다', () => {
+  const cur = (sel = '') => `.slide.current ${sel}`;
+  test('가운데 큰 원 안의 시작 버튼을 누르면 보고 있는 과제의 뽀모도로가 시작된다', () => {
     show('pomodoro');
-    const id = $('.hero .pomo [data-action="pomo-start"]').dataset.id;
-    click('.hero .pomo [data-action="pomo-start"]');
+    const id = $('.slide.current').dataset.id;
+    click(cur('.pomo-ring [data-action="pomo-start"]'));
     eq(state.timer.taskId, id);
-    ok($('.hero .pomo.phase-focus #timer-ring'), '원형 타이머가 집중 상태');
+    ok($(cur('.pomo.phase-focus.running')), '원형 타이머가 집중 중');
     ok(document.title.includes('집중'), `탭 제목: ${document.title}`);
   });
-  test('원형 타이머 아래 버튼으로 일시정지 → 재개 → 중지할 수 있다', () => {
-    click('.hero .pomo [data-action="pomo-pause"]');
+  test('원 안의 버튼으로 일시정지 → 재개 → 중지할 수 있다', () => {
+    click(cur('.pomo-ring [data-action="pomo-pause"]'));
     eq(state.timer.endsAt, null);
     ok(document.title.startsWith('⏸'), document.title);
-    click('.hero .pomo [data-action="pomo-resume"]');
+    click(cur('.pomo-ring [data-action="pomo-resume"]'));
     ok(state.timer.endsAt > Date.now(), '재개 후 진행');
-    click('.hero .pomo [data-action="pomo-stop"]');
+    click(cur('.pomo-ring [data-action="pomo-stop"]'));
     eq(state.timer, null);
-    ok($('.hero .pomo.phase-idle [data-action="pomo-start"]'), '중지 후 시작 버튼으로 돌아옴');
+    ok($(cur('.pomo.phase-idle [data-action="pomo-start"]')), '중지 후 시작 버튼으로 돌아옴');
   });
-  test('ToDo 탭에서 시작하면 뽀모도로 탭으로 이동하고, 집중 중인 과제가 카드에 표시된다', () => {
+  test('› 버튼·점·키보드로 옆 과제로 넘어간다 (다시 그리지 않고 슬라이드만 이동)', () => {
+    show('pomodoro');
+    const ids = $$('.slide').map((el) => el.dataset.id);
+    ok(ids.length > 3, '슬라이드 여러 개');
+    const track = $('.car-track');
+    click('.car-nav.next');
+    eq($('.slide.current').dataset.id, ids[1]);
+    ok(track.isConnected && track.style.transform.includes('-100%'), track.style.transform);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+    eq($('.slide.current').dataset.id, ids[2]);
+    click('.car-dots .dot');
+    eq($('.slide.current').dataset.id, ids[0]);
+    ok($('.car-nav.prev').disabled, '첫 슬라이드에서 이전 버튼 비활성');
+  });
+  test('옆으로 드래그(스와이프)하면 다음 과제로 넘어간다', () => {
+    show('pomodoro');
+    const ids = $$('.slide').map((el) => el.dataset.id);
+    const vp = $('.car-viewport');
+    const ev = (type, x) => vp.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x }));
+    ev('pointerdown', 600); ev('pointermove', 450); ev('pointerup', 450);
+    eq($('.slide.current').dataset.id, ids[1]);
+    ev('pointerdown', 300); ev('pointermove', 320); ev('pointerup', 320);
+    eq($('.slide.current').dataset.id, ids[1], '조금만 움직이면 제자리');
+  });
+  test('과제마다 타이머가 따로: 다른 과제를 시작하면 앞 과제는 남은 시간 그대로 멈추고, 돌아와 재개할 수 있다', () => {
+    show('pomodoro');
+    const [a, b] = $$('.slide').map((el) => el.dataset.id);
+    click(cur('[data-action="pomo-start"]'));
+    eq(state.timer.taskId, a);
+    click('.car-nav.next');
+    click(cur('[data-action="pomo-start"]'));
+    eq(state.timer.taskId, b);
+    eq(timerOf(a).endsAt, null);
+    ok(timerOf(a).left > 0, 'A 남은 시간 보관');
+    eq($('.slide.current').dataset.id, b, '시작한 과제 슬라이드에 머묾');
+    click('.car-nav.prev');
+    ok($(cur('.pomo-label')).textContent.includes('일시정지'), $(cur('.pomo-label')).textContent);
+    click(cur('[data-action="pomo-resume"]'));
+    eq(state.timer.taskId, a);
+    eq(timerOf(b).endsAt, null);
+    stopTimerOf(a); stopTimerOf(b);
+  });
+  test('ToDo 탭에서 시작하면 뽀모도로 탭의 그 과제 슬라이드로 이동한다', () => {
     show('todo');
     const last = $$('#view [data-action="pomo-start"]').pop().dataset.id;
     startPomodoro(last);
     eq(currentTab, 'pomodoro');
-    eq($('.hero .pomo [data-action="pomo-pause"]') && state.timer.taskId, last);
-    ok($('.hero').textContent.includes('집중 중인 과제'), '카드 제목');
+    eq($('.slide.current').dataset.id, last);
+    ok($(cur('.hero-label')).textContent.includes('집중 중'), '슬라이드 라벨');
   });
   test('다른 탭에서는 상단에 남은 시간 칩만 보이고, 누르면 뽀모도로 탭으로 간다', () => {
     click('#tabs [data-tab="todo"]');
@@ -480,33 +555,19 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     click('#pomo-chip');
     eq(currentTab, 'pomodoro');
     ok($('#pomo-chip').hidden, '뽀모도로 탭에서는 숨김');
-  });
-  test('집중 중에 카드의 과제 선택으로 바꾸면 남은 시간이 새 과제로 이어진다', () => {
-    const from = state.timer.taskId;
-    const other = $$('.hero [data-pick] option').map((o) => o.value).find((id) => id !== from);
-    const leftBefore = pomoLeft();
-    change('.hero [data-pick]', other);
-    eq(state.timer.taskId, other);
-    ok(Math.abs(pomoLeft() - leftBefore) < 2000, '남은 시간 유지');
-    eq($('.hero [data-pick]').value, other);
-    ok($('.hero .pomo [data-action="pomo-pause"]'), '타이머 계속 진행');
     pomoStop();
   });
-  test('타이머가 없을 때 과제를 고르면 카드가 그 과제로 바뀌고, 시작하면 그 과제로 집중한다', () => {
+  test('오늘 계획의 보기 버튼으로 그 과제 슬라이드로 이동한다', () => {
     show('pomodoro');
-    const target = $$('.hero [data-pick] option').pop().value;
-    change('.hero [data-pick]', target);
-    ok($('.hero').textContent.includes('선택한 과제'), '카드 제목');
-    click('.hero .pomo [data-action="pomo-start"]');
-    eq(state.timer.taskId, target);
-    pomoStop(); focusPick = null;
-  });
-  test('오늘 계획·다음 순위의 선택 버튼으로 카드 과제를 바꾼다', () => {
-    show('pomodoro');
-    const btn = $('.grid2 [data-action="pick-task"]');
-    click('.grid2 [data-action="pick-task"]');
-    eq($('.hero [data-pick]').value, btn.dataset.id);
+    const btn = $$('.slots [data-action="pick-task"]').pop();
+    btn.click();
+    eq($('.slide.current').dataset.id, btn.dataset.id);
     focusPick = null;
+  });
+  test('추천 이유는 문장이 아니라 태그로 보인다', () => {
+    show('pomodoro');
+    ok($$(cur('.tags .tag')).length >= 2, '태그 표시');
+    ok(!$(cur('')).textContent.includes('습니다'), '문장 없음');
   });
   test('과제 추가 모달에서 저장하면 목록과 오늘 계획에 반영된다', () => {
     show('todo');
@@ -556,13 +617,13 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     eq(f.elements.estHours.value, '4.5');
     closeModal();
   });
-  test('휴식 중에는 원형 타이머가 휴식으로 바뀌고 건너뛰기 버튼이 나온다', () => {
+  test('휴식 중에는 원형 타이머가 휴식으로 바뀌고 원 안에 건너뛰기 버튼이 나온다', () => {
     show('pomodoro');
-    click('.hero .pomo [data-action="pomo-start"]');
+    click('.slide.current [data-action="pomo-start"]');
     pomoAdvance(state.timer.endsAt);
     render();
-    ok($('.hero .pomo.phase-short [data-action="pomo-skip"]'), $('.hero .pomo').textContent.replace(/\s+/g, ' '));
-    ok($('.hero .pomo-label').textContent.includes('휴식'), '휴식 표시');
+    ok($('.slide.current .pomo.phase-short .pomo-ring [data-action="pomo-skip"]'), $('.slide.current .pomo').textContent.replace(/\s+/g, ' '));
+    ok($('.slide.current .pomo-label').textContent.includes('휴식'), '휴식 표시');
     pomoStop();
   });
   test('ToDo 탭의 목록/캘린더 전환이 동작한다', () => {
@@ -600,7 +661,7 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     change('[data-setting="pomo.focus"]', '0');
     eq(state.settings.pomodoro.focus, 25);
   });
-  state = defaultState(); state.timer = null; currentTab = 'pomodoro'; closeModal(); render();
+  state = defaultState(); state.timer = null; focusPick = null; currentTab = 'pomodoro'; closeModal(); render();
 });
 
 (function report() {
