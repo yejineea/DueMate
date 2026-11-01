@@ -1,5 +1,4 @@
-// tests.html 전용: 브라우저에서 핵심 계산 로직을 검증한다. 저장은 막고 메모리 상태만 쓴다.
-save = function () {};
+// tests.html 전용: 브라우저에서 핵심 계산 로직과 실제 화면 조작을 검증한다. 저장은 막고 메모리 상태만 쓴다.
 
 const groups = [];
 let group = null;
@@ -229,6 +228,126 @@ describe('성적 계산', () => {
     const r = calcGrade([{ id: 1, name: '중간', weight: 50, max: 100, score: 80 }]);
     eq(r.errors.length, 1);
   });
+});
+
+describe('v1 데이터 호환', () => {
+  const v1 = {
+    tasks: [{ id: 't1', title: '리포트', subject: '경영', type: '보고서', due: '2026-11-05T23:59', estHours: 3, importance: 3, difficulty: 2,
+      subtasks: [], logs: [{ date: '2026-10-30', ms: HOUR }], done: false, doneAt: null }],
+    subjects: ['경영'], schedule: [{ id: 's1', day: 0, start: '09:00', end: '12:00', label: '수업' }], grades: {},
+    timer: { taskId: 't1', startedAt: null, acc: 10 * MIN },
+    settings: { dailyHours: [1, 1, 1, 1, 1, 4, 4], alertHours: 12, theme: 'dark' },
+  };
+  test('v1 설정은 유지하고 새 설정은 기본값으로 채운다', () => {
+    const s = normalize(JSON.parse(JSON.stringify(v1)));
+    eq(s.settings.dailyHours, [1, 1, 1, 1, 1, 4, 4]); eq(s.settings.alertHours, 12); eq(s.settings.theme, 'dark');
+    eq(s.settings.hoursMode, 'auto'); eq(s.settings.pomodoro.focus, 25); eq(s.settings.dayStart, '09:00');
+  });
+  test('측정 중이던 v1 스톱워치 시간은 작업 기록으로 옮기고 타이머를 끈다', () => {
+    const s = normalize(JSON.parse(JSON.stringify(v1)));
+    eq(s.timer, null);
+    eq(s.tasks[0].logs.map((l) => l.ms), [HOUR, 10 * MIN]);
+  });
+  test('뽀모도로 설정 일부만 저장돼 있어도 나머지는 기본값을 쓴다', () => {
+    const s = normalize({ settings: { pomodoro: { focus: 50 } } });
+    eq([s.settings.pomodoro.focus, s.settings.pomodoro.short, s.settings.pomodoro.longEvery], [50, 5, 4]);
+  });
+});
+
+describe('화면 렌더링', () => {
+  const views = { 오늘: () => renderToday(), 과제: () => renderTasks(), 캘린더: () => renderCalendar(),
+    통계: () => renderStats(), 성적: () => renderGrades(), 설정: () => renderSettings() };
+  Object.entries(views).forEach(([name, fn]) => {
+    test(`${name} 화면이 샘플 데이터와 빈 데이터에서 오류 없이 그려진다`, () => {
+      state = sampleState();
+      ok(fn().length > 100, '샘플 데이터 화면이 비어 있음');
+      state = defaultState();
+      ok(typeof fn() === 'string', '빈 데이터 화면 실패');
+    });
+  });
+  test('직접 입력 모드에서도 설정 화면이 그려진다', () => {
+    state = sampleState();
+    state.settings.hoursMode = 'manual';
+    ok(renderSettings().includes('data-setting="day"'), '요일별 입력칸 없음');
+  });
+  state = defaultState();
+});
+
+describe('화면 조작 (실제 클릭·입력)', () => {
+  window.confirm = () => true;
+  const click = (sel) => { const el = $(sel); if (!el) throw new Error(`${sel} 없음`); el.click(); };
+  const change = (sel, value) => { const el = $(sel); el.value = value; el.dispatchEvent(new Event('change', { bubbles: true })); };
+  function show(tab) { state = sampleState(); currentTab = tab; render(); }
+
+  test('오늘 화면의 집중 시작 버튼을 누르면 지금 할 일 과제의 뽀모도로가 시작된다', () => {
+    show('today');
+    const id = $('.hero [data-action="pomo-start"]').dataset.id;
+    click('.hero [data-action="pomo-start"]');
+    eq(state.timer.taskId, id);
+    ok(!$('#timerbar').classList.contains('hidden'), '타이머 바가 보여야 함');
+    ok(document.title.includes('집중'), `탭 제목: ${document.title}`);
+    ok($('.hero').textContent.includes('집중 중'), '시작 후 버튼 문구');
+  });
+  test('타이머 바에서 일시정지 → 재개 → 종료할 수 있다', () => {
+    click('#timerbar [data-action="pomo-pause"]');
+    eq(state.timer.endsAt, null);
+    ok(document.title.startsWith('⏸'), document.title);
+    click('#timerbar [data-action="pomo-resume"]');
+    ok(state.timer.endsAt > Date.now(), '재개 후 진행');
+    click('#timerbar [data-action="pomo-stop"]');
+    eq(state.timer, null);
+    ok($('#timerbar').classList.contains('hidden'), '종료 후 숨김');
+  });
+  test('다른 과제에서 시작하면 진행 중인 뽀모도로를 끝내고 바꾼다', () => {
+    show('tasks');
+    const btns = $$('#view [data-action="pomo-start"]');
+    btns[0].click();
+    $$('#view [data-action="pomo-start"]')[1].click();
+    eq(state.timer.taskId, btns[1].dataset.id);
+    pomoStop();
+  });
+  test('과제 추가 모달에서 저장하면 목록과 오늘 계획에 반영된다', () => {
+    show('tasks');
+    openTaskForm(null);
+    const f = $('form[data-form="task"]');
+    f.elements.title.value = '테스트 과제';
+    f.elements.subject.value = '테스트 과목';
+    f.elements.due.value = `${ymd(new Date())}T23:59`;
+    f.elements.importance.value = '5';
+    f.requestSubmit();
+    ok(state.tasks.some((t) => t.title === '테스트 과제'), '상태에 추가');
+    ok($('#modal').classList.contains('hidden'), '모달 닫힘');
+    ok($('#view').textContent.includes('테스트 과제'), '목록에 표시');
+  });
+  test('수정 화면의 삭제 버튼으로 과제를 지운다', () => {
+    const t = state.tasks.find((x) => x.title === '테스트 과제');
+    openTaskForm(t.id);
+    click('#modal-box [data-action="delete-task"]');
+    ok(!state.tasks.includes(t), '삭제됨');
+  });
+  test('탭 버튼과 분석의 통계/성적 전환이 동작한다', () => {
+    show('today');
+    click('#tabs [data-tab="analytics"]');
+    eq(currentTab, 'analytics');
+    click('[data-action="analytics-view"][data-view="grades"]');
+    ok($('#view').textContent.includes('평가 항목'), '성적 화면');
+    click('[data-action="analytics-view"][data-view="stats"]');
+  });
+  test('설정에서 활동 시간을 바꾸면 공부 가능 시간이 다시 계산된다', () => {
+    show('settings');
+    change('[data-setting="dayStart"]', '13:00');
+    eq(state.settings.dayStart, '13:00');
+    near(dayCapacity(new Date()).winH, 11);
+    click('[data-action="hours-mode"][data-mode="manual"]');
+    eq(state.settings.hoursMode, 'manual');
+    ok($('[data-setting="day"]'), '직접 입력칸 표시');
+  });
+  test('잘못된 뽀모도로 길이는 거부한다', () => {
+    show('settings');
+    change('[data-setting="pomo.focus"]', '0');
+    eq(state.settings.pomodoro.focus, 25);
+  });
+  state = defaultState(); state.timer = null; currentTab = 'today'; closeModal(); render();
 });
 
 (function report() {
