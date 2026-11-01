@@ -1,3 +1,19 @@
+// 데모 전용: ?demo&at=15:00 (또는 at=2026-11-02T15:00) 이면 그 시각인 것처럼 시계를 옮긴다 (README 스크린샷용, 실제 데이터와 무관)
+(() => {
+  const q = new URLSearchParams(location.search);
+  const at = q.has('demo') && q.get('at');
+  if (!at) return;
+  const RealDate = Date;
+  const target = at.includes('T') ? new RealDate(at) : new RealDate(`${new RealDate().toISOString().slice(0, 10)}T${at}`);
+  if (Number.isNaN(target.getTime())) return;
+  const offset = target - RealDate.now();
+  class ShiftedDate extends RealDate {
+    constructor(...a) { if (a.length) super(...a); else super(RealDate.now() + offset); }
+    static now() { return RealDate.now() + offset; }
+  }
+  window.Date = ShiftedDate;
+})();
+
 const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);

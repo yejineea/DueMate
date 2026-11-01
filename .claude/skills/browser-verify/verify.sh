@@ -36,7 +36,7 @@ shot() {
 phone() {
   local page="$ROOT/docs/images/_phone.html" out="$ROOT/docs/images/${2:-phone}.png"
   local tabs="${1:-pomodoro todo settings}" frames=""
-  for t in $tabs; do frames="$frames<iframe style=\"width:390px;height:840px;border:0\" src=\"$BASE/index.html?demo&amp;tab=$t\"></iframe>"; done
+  for t in $tabs; do frames="$frames<iframe style=\"width:390px;height:840px;border:0\" src=\"$BASE/index.html?demo&amp;at=15:00&amp;tab=$t\"></iframe>"; done
   printf '<!DOCTYPE html><body style="margin:0;display:flex;gap:12px;background:#999;padding:10px">%s</body>' "$frames" > "$page"
   "$CHROME" --headless=new --disable-gpu --no-first-run --allow-file-access-from-files --user-data-dir="$PROFILE-phone" --hide-scrollbars     --window-size=1220,860 --virtual-time-budget=4000 --screenshot="$(cygpath -w "$out" 2>/dev/null || echo "$out")" "$BASE/docs/images/_phone.html" 2>/dev/null
   rm -f "$page"; echo "saved docs/images/${2:-phone}.png"
@@ -47,12 +47,16 @@ case "${1:-test}" in
   test) run_tests ;;
   shot) shot "$2" "$3" "${4:-1000}" ;;
   shots)
-    shot v2-pomodoro "demo&tab=pomodoro&pomo" 1300
-    shot v2-todo "demo&tab=todo"
-    shot v2-calendar "demo&tab=todo&view=calendar"
-    shot v2-report "demo&tab=report" 1500
-    shot v2-grades "demo&tab=report&view=grades"
-    shot v2-settings "demo&tab=settings" 1300
+    # README용: 오후 3시로 시계를 맞춘 데모 (밤에 찍어도 오늘 계획이 비지 않게)
+    shot v2-pomodoro "demo&at=15:00&tab=pomodoro&pomo" 900
+    shot v2-todo "demo&at=15:00&tab=todo" 900
+    shot v2-calendar "demo&at=15:00&tab=todo&view=calendar" 900
+    shot v2-report "demo&at=15:00&tab=report" 1250
+    shot v2-grades "demo&at=15:00&tab=report&view=grades" 820
+    shot v2-grow "demo&at=15:00&tab=achieve" 1200
+    shot v2-settings "demo&at=15:00&tab=settings" 1250
+    shot v2-form "demo&at=15:00&form" 760
+    phone "pomodoro todo achieve" v2-phone
     ;;
   *) echo "usage: verify.sh test | shot <name> <query> [height] | shots | phone ["tab tab tab"] [name]"; exit 2 ;;
 esac

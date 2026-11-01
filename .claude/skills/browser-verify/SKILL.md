@@ -15,6 +15,7 @@ DueMate의 실행 환경은 브라우저로 한정된다. Node에서 돌리는 �
   - `tests.html`: 로드되면 테스트를 실행하고 `<body data-result="pass|fail">`와 `#summary`에 결과를 쓴다.
   - `index.html?demo`: 샘플 데이터를 메모리에만 올리는 데모 모드 (사용자 데이터를 건드리지 않음)
   - `index.html?demo&tab=<탭>`: 특정 탭으로 바로 연다. `&pomo`를 붙이면 뽀모도로가 진행 중인 상태로 연다.
+  - `&at=15:00`: 데모의 시계를 그 시각으로 옮긴다. 밤에 찍어도 오늘 계획이 비지 않게 README 스크린샷은 이 값으로 찍는다. `&theme=dark`는 다크 모드, `&form`은 과제 추가 화면.
 
 ## 사용법
 
