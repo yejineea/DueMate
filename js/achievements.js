@@ -99,19 +99,41 @@ function plantSvg(count, goal) {
   </svg>`;
 }
 
-function badges(map, total, weekGoalHit) {
+// 배지: [아이콘, 이름, 설명, 현재 값, 목표 값] → 현재 ≥ 목표면 획득, 아니면 진행도(현재/목표) 표시
+function badges(map, total, thisWeek, goal) {
   const streak = bestStreak(map);
   const bestDay = Math.max(0, ...Object.values(map));
   return [
-    ['🌱', '첫 토마토', '집중 1회 완료', total >= 1],
-    ['🍅', '토마토 10개', '누적 10개', total >= 10],
-    ['🧺', '토마토 50개', '누적 50개', total >= 50],
-    ['🏆', '토마토 100개', '누적 100개', total >= 100],
-    ['🔥', '3일 연속', '3일 연속 집중', streak >= 3],
-    ['⚡', '7일 연속', '7일 연속 집중', streak >= 7],
-    ['💪', '하루 8개', '하루 8개 (약 4시간)', bestDay >= 8],
-    ['🎯', '주간 목표', '이번 주 목표 달성', weekGoalHit],
-  ];
+    ['🌱', '첫 토마토', '집중 1회 완료', total, 1],
+    ['🍅', '토마토 10개', '누적 10개', total, 10],
+    ['🧺', '토마토 50개', '누적 50개', total, 50],
+    ['🏆', '토마토 100개', '누적 100개', total, 100],
+    ['🔥', '3일 연속', '3일 연속 집중', streak, 3],
+    ['⚡', '7일 연속', '7일 연속 집중', streak, 7],
+    ['💪', '하루 8개', '하루 8개 (약 4시간)', bestDay, 8],
+    ['🎯', '주간 목표', '이번 주 목표 달성', thisWeek, goal],
+  ].map(([icon, name, desc, cur, need]) => ({ icon, name, desc, cur: Math.min(cur, need), need, on: cur >= need }));
+}
+
+// 로제트 메달: 톱니 테두리(동색 그라데이션) + 안쪽 원판 + 점선 고리 + 빛 반사, 아래 V자 리본 두 갈래
+function medalSvg(icon, i) {
+  const pts = [...Array(48)].map((_, k) => {
+    const a = (Math.PI * 2 * k) / 48, r = k % 2 ? 31.5 : 35;
+    return `${(40 + r * Math.sin(a)).toFixed(1)},${(38 - r * Math.cos(a)).toFixed(1)}`;
+  }).join(' ');
+  return `<svg class="medal" viewBox="0 0 80 100" aria-hidden="true">
+    <defs>
+      <linearGradient id="mg-rim-${i}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="m-hi"></stop><stop offset=".5" class="m-mid"></stop><stop offset="1" class="m-lo"></stop></linearGradient>
+      <radialGradient id="mg-face-${i}" cx=".38" cy=".32" r=".8"><stop offset="0" class="m-face-hi"></stop><stop offset="1" class="m-face-lo"></stop></radialGradient>
+    </defs>
+    <path class="m-ribbon a" d="M28 58 L18 96 L25 90 L31 97 L38 64 Z"></path>
+    <path class="m-ribbon b" d="M52 58 L62 96 L55 90 L49 97 L42 64 Z"></path>
+    <polygon points="${pts}" fill="url(#mg-rim-${i})"></polygon>
+    <circle cx="40" cy="38" r="27" fill="url(#mg-face-${i})" class="m-face"></circle>
+    <circle cx="40" cy="38" r="23" class="m-dots"></circle>
+    <text x="40" y="39" class="m-icon">${icon}</text>
+    <path class="m-shine" d="M22 30 A20 20 0 0 1 36 16"></path>
+  </svg>`;
 }
 
 function renderAchievements() {
@@ -178,7 +200,12 @@ function renderAchievements() {
 
   <section class="panel">
     <h3>배지</h3>
-    <div class="badges">${badges(map, total, thisWeek >= goal).map(([icon, name, desc, on]) => `
-      <div class="badge-card ${on ? 'on' : ''}" title="${esc(desc)}"><div class="bi">${icon}</div><b>${name}</b><span class="muted small">${desc}</span></div>`).join('')}</div>
+    <div class="badges">${badges(map, total, thisWeek, goal).map((b, i) => `
+      <div class="badge-card ${b.on ? 'on' : ''}" title="${esc(b.desc)}">
+        ${medalSvg(b.icon, i)}
+        <b>${b.name}</b>
+        ${b.on ? `<span class="muted small">${b.desc}</span>`
+          : `<span class="badge-prog"><span style="width:${(b.cur / b.need) * 100}%"></span></span><span class="muted small">${b.cur} / ${b.need}</span>`}
+      </div>`).join('')}</div>
   </section>`;
 }

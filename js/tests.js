@@ -304,6 +304,12 @@ describe('토마토 키우기', () => {
     ok(plantSvg(20, 20).includes('pl-fruit pl-main'), '빨간 토마토 단계의 대표 토마토는 빨강');
     eq(TALK.length, 6); eq(STAGE_RULE.length, 6);
   });
+  test('배지는 현재/목표로 획득 여부와 진행도를 낸다', () => {
+    const b = badges({ '2026-11-01': 3, '2026-11-02': 9 }, 12, 5, 20);
+    eq(b.map((x) => x.on), [true, true, false, false, false, false, true, false]);
+    eq([b[2].cur, b[2].need], [12, 50]);
+    ok(medalSvg('🍅', 0).includes('m-ribbon'), '메달 그림');
+  });
   test('단계마다 화분 그림이 달라진다 (열매 수·색)', () => {
     ok(!plantSvg(0, 20).includes('pl-stem'), '씨앗은 줄기 없음');
     ok(plantSvg(12, 20).includes('pl-bud'), '꽃봉오리');
