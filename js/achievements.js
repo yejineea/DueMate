@@ -1,4 +1,4 @@
-// 성과 탭: 모은 🍅(끝까지 마친 집중)로 이번 주 목표 달성, 요일별·주별 추이, 과목별 분포, 연속 집중일, 배지를 보여준다.
+// 토마토 키우기 탭 (재미 요소): 이번 주 모은 🍅만큼 화분의 토마토가 자란다. 주간 목표·요일별·8주 추이·연속 집중일·배지.
 
 function pomoByDay(s = state) {
   const map = {};
@@ -29,19 +29,60 @@ function bestStreak(map) {
   return best;
 }
 
+// 자라는 단계: 주간 목표 대비 이번 주 🍅 비율
+const STAGES = ['씨앗', '새싹', '줄기', '꽃봉오리', '초록 토마토', '빨간 토마토'];
+function plantStage(count, goal) {
+  const r = count / goal;
+  return count === 0 ? 0 : r < 0.25 ? 1 : r < 0.5 ? 2 : r < 0.75 ? 3 : r < 1 ? 4 : 5;
+}
+
+function plantSvg(count, goal) {
+  const stage = plantStage(count, goal);
+  const r = Math.min(1, count / goal);
+  const ground = 168, h = stage ? 26 + 110 * r : 0, top = ground - h;
+  const parts = [];
+  if (!stage) parts.push(`<ellipse class="pl-seed" cx="100" cy="${ground - 2}" rx="6" ry="4"></ellipse>`);
+  else {
+    parts.push(`<path class="pl-stem" d="M100 ${ground} Q 94 ${ground - h / 2} 100 ${top}"></path>`);
+    const leaves = Math.min(6, 1 + Math.floor(r * 6));
+    for (let i = 0; i < leaves; i++) {
+      const y = ground - ((i + 1) * h) / (leaves + 1), side = i % 2 ? 1 : -1;
+      parts.push(`<ellipse class="pl-leaf" cx="${100 + side * 15}" cy="${y}" rx="14" ry="6" transform="rotate(${side * -28} ${100 + side * 15} ${y})"></ellipse>`);
+    }
+    parts.push(`<ellipse class="pl-leaf" cx="93" cy="${top}" rx="9" ry="4" transform="rotate(30 93 ${top})"></ellipse>
+      <ellipse class="pl-leaf" cx="107" cy="${top}" rx="9" ry="4" transform="rotate(-30 107 ${top})"></ellipse>`);
+    if (stage >= 3) {
+      const spots = [[78, 0.35], [122, 0.5], [80, 0.62], [120, 0.75], [100, 0.85], [76, 0.85]];
+      const n = stage === 3 ? 3 : stage === 4 ? 5 : 6;
+      const reds = stage === 5 ? n : stage === 4 ? Math.round(((r - 0.75) / 0.25) * n) : 0;
+      spots.slice(0, n).forEach(([x, f], i) => {
+        const y = ground - h * f;
+        parts.push(stage === 3
+          ? `<circle class="pl-bud" cx="${x}" cy="${y}" r="4"></circle>`
+          : `<circle class="${i < reds ? 'pl-fruit' : 'pl-green'}" cx="${x}" cy="${y}" r="${stage === 5 ? 10 : 8}"></circle>
+             <path class="pl-cap" d="M${x - 4} ${y - 7} L${x} ${y - 4} L${x + 4} ${y - 7}"></path>`);
+      });
+    }
+  }
+  return `<svg class="plant" viewBox="0 0 200 220" aria-hidden="true">
+    ${parts.join('')}
+    <rect class="pl-soil" x="58" y="${ground - 2}" width="84" height="8" rx="3"></rect>
+    <path class="pl-pot" d="M56 ${ground + 4} H144 L134 212 H66 Z"></path>
+  </svg>`;
+}
+
 function badges(map, total, weekGoalHit) {
   const streak = bestStreak(map);
   const bestDay = Math.max(0, ...Object.values(map));
   return [
-    // [원 안 글자, 색(red|green), 이름, 설명, 달성]
-    ['1', 'red', '첫 토마토', '처음으로 집중 1회 완료', total >= 1],
-    ['10', 'red', '토마토 10개', '누적 10개', total >= 10],
-    ['50', 'red', '토마토 50개', '누적 50개', total >= 50],
-    ['100', 'red', '토마토 100개', '누적 100개', total >= 100],
-    ['3일', 'green', '3일 연속', '3일 연속 집중', streak >= 3],
-    ['7일', 'green', '7일 연속', '7일 연속 집중', streak >= 7],
-    ['8', 'red', '하루 8개', '하루에 8개 (약 4시간 집중)', bestDay >= 8],
-    ['목표', 'green', '주간 목표 달성', '이번 주 목표 달성', weekGoalHit],
+    ['🌱', '첫 토마토', '집중 1회 완료', total >= 1],
+    ['🍅', '토마토 10개', '누적 10개', total >= 10],
+    ['🧺', '토마토 50개', '누적 50개', total >= 50],
+    ['🏆', '토마토 100개', '누적 100개', total >= 100],
+    ['🔥', '3일 연속', '3일 연속 집중', streak >= 3],
+    ['⚡', '7일 연속', '7일 연속 집중', streak >= 7],
+    ['💪', '하루 8개', '하루 8개 (약 4시간)', bestDay >= 8],
+    ['🎯', '주간 목표', '이번 주 목표 달성', weekGoalHit],
   ];
 }
 
@@ -50,11 +91,12 @@ function renderAchievements() {
   const now = new Date();
   const ws = startOfWeek(now);
   const goal = state.settings.weeklyGoal;
+  const pm = state.settings.pomodoro;
   const thisWeek = weekPomos(ws, map);
   const lastWeek = weekPomos(addDays(ws, -7), map);
   const total = Object.values(map).reduce((a, b) => a + b, 0);
-  const focusMin = state.settings.pomodoro.focus;
-  const streak = focusStreak(map);
+  const stage = plantStage(thisWeek, goal);
+  const nextAt = [1, 0.25, 0.5, 0.75, 1].map((f, i) => (i === 0 ? 1 : Math.ceil(goal * f)))[stage];
   const diff = thisWeek - lastWeek;
   const pct = Math.min(100, Math.round((thisWeek / goal) * 100));
 
@@ -64,60 +106,46 @@ function renderAchievements() {
     const s = addDays(ws, -7 * (7 - i));
     return { label: i === 7 ? '이번 주' : `${s.getMonth() + 1}/${s.getDate()}`, value: weekPomos(s, map) };
   });
-  const wk = new Set(weekDates(ws));
-  const bySubject = {};
-  state.tasks.forEach((t) => t.logs.forEach((l) => { if (l.pomo && wk.has(l.date)) bySubject[t.subject] = (bySubject[t.subject] || 0) + 1; }));
-  const subjRows = Object.entries(bySubject).sort((a, b) => b[1] - a[1]);
-  const maxSubj = Math.max(1, ...subjRows.map(([, n]) => n));
 
   return `
-  <section class="panel tomato-guide">
-    <div class="tg-icon">🍅</div>
-    <div>
-      <h3 style="margin:0 0 6px">토마토(🍅)란?</h3>
-      <p class="small" style="margin:0">뽀모도로(pomodoro)는 이탈리아어로 <b>토마토</b>입니다. <b>${focusMin}분 집중 + ${state.settings.pomodoro.short}분 휴식</b>을 끝까지 마치면 🍅 1개를 모읍니다.
-      중간에 멈추면 집중한 시간은 과제에 기록되지만 🍅는 생기지 않습니다. ${state.settings.pomodoro.longEvery}개마다 긴 휴식이 들어갑니다.
-      오늘 계획의 "🍅×3"은 그 과제를 ${focusMin}분씩 3번 집중하라는 뜻입니다.</p>
-    </div>
-  </section>
-
   <section class="grid2">
+    <div class="panel plant-card">
+      <div class="toolbar" style="margin-bottom:0">
+        <h3 style="margin:0">이번 주 토마토</h3>
+        <span class="spacer"></span>
+        <span class="muted small" title="${pm.focus}분 집중 + ${pm.short}분 휴식을 끝까지 마치면 🍅 1개">🍅 = ${pm.focus}분 집중 완료</span>
+      </div>
+      ${plantSvg(thisWeek, goal)}
+      <div class="plant-stage"><b>${STAGES[stage]}</b>${stage < 5 ? ` · 다음 단계까지 🍅 ${Math.max(1, nextAt - thisWeek)}개` : ' · 수확 완료! 🎉'}</div>
+    </div>
     <div class="panel week-goal">
       <div class="toolbar" style="margin-bottom:6px">
-        <h3 style="margin:0">이번 주 모은 토마토</h3>
+        <h3 style="margin:0">주간 목표</h3>
         <span class="spacer"></span>
-        <label class="small muted">주간 목표 <input type="number" min="1" max="200" data-setting="weeklyGoal" value="${goal}" style="width:70px"> 개</label>
+        <label class="small muted"><input type="number" min="1" max="200" data-setting="weeklyGoal" value="${goal}" style="width:64px"> 개</label>
       </div>
-      <div class="big-count"><span class="tomato">🍅</span> <b>${thisWeek}</b> <span class="muted">/ ${goal}개</span></div>
+      <div class="big-count"><b>${thisWeek}</b> <span class="muted">/ ${goal}개</span></div>
       <div class="bar goal-bar"><span style="width:${pct}%"></span></div>
-      <div class="small muted" style="margin-top:6px">
-        ${thisWeek >= goal ? '<b class="green">이번 주 목표 달성! 🎉</b>' : `목표까지 ${goal - thisWeek}개`} ·
-        지난주 ${lastWeek}개 (${diff >= 0 ? `+${diff}` : diff}) · 집중 ${+(thisWeek * focusMin / 60).toFixed(1)}시간
-      </div>
+      <div class="small muted" style="margin-top:6px">${thisWeek >= goal ? '<b class="green">목표 달성</b>' : `남은 🍅 ${goal - thisWeek}개`} · 지난주 대비 ${diff >= 0 ? `+${diff}` : diff}</div>
       <div class="week-days">${days.map(({ d, i, n, future }) => `
         <div class="wd ${d === ymd(now) ? 'today' : ''} ${future ? 'future' : ''}">
           <div class="wd-bar"><span style="height:${(n / maxDay) * 100}%"></span></div>
           <b>${n || ''}</b><span>${WEEKDAYS[i]}</span>
         </div>`).join('')}</div>
-    </div>
-    <div class="panel">
-      <h3>기록</h3>
-      <div class="stat-grid">
-        <div><div class="num">${streak}<small>일</small></div><div class="muted small">연속 집중일</div></div>
+      <div class="stat-grid" style="margin-top:14px">
+        <div><div class="num">${focusStreak(map)}<small>일</small></div><div class="muted small">연속 집중</div></div>
         <div><div class="num">${bestStreak(map)}<small>일</small></div><div class="muted small">최장 연속</div></div>
-        <div><div class="num">${total}<small>개</small></div><div class="muted small">누적 토마토</div></div>
-        <div><div class="num">${+(total * focusMin / 60).toFixed(1)}<small>h</small></div><div class="muted small">누적 집중 시간</div></div>
+        <div><div class="num">${total}<small>개</small></div><div class="muted small">누적 🍅</div></div>
+        <div><div class="num">${+((total * pm.focus) / 60).toFixed(1)}<small>h</small></div><div class="muted small">누적 집중</div></div>
       </div>
-      <h4>이번 주 과목별</h4>
-      ${subjRows.length ? subjRows.map(([s, n]) => hRow(s, n, maxSubj, `🍅 ${n}`)).join('') : '<p class="muted small">이번 주에 모은 토마토가 아직 없습니다.</p>'}
     </div>
   </section>
 
-  <section class="panel"><h3>주별 토마토 (최근 8주)</h3>${vChart(weeks)}</section>
+  <section class="panel"><h3>주별 토마토</h3>${vChart(weeks)}</section>
 
   <section class="panel">
     <h3>배지</h3>
-    <div class="badges">${badges(map, total, thisWeek >= goal).map(([mark, color, name, desc, on]) => `
-      <div class="badge-card ${on ? 'on' : ''}" title="${esc(desc)}"><div class="bi ${color}">${mark}</div><b>${name}</b><span class="muted small">${desc}</span></div>`).join('')}</div>
+    <div class="badges">${badges(map, total, thisWeek >= goal).map(([icon, name, desc, on]) => `
+      <div class="badge-card ${on ? 'on' : ''}" title="${esc(desc)}"><div class="bi">${icon}</div><b>${name}</b><span class="muted small">${desc}</span></div>`).join('')}</div>
   </section>`;
 }

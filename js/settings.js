@@ -6,7 +6,6 @@ function studyTimeSection() {
   const ws = startOfWeek(new Date());
   const days = WEEKDAYS.map((d, i) => ({ d, i, c: dayCapacity(addDays(ws, i)) }));
   const recent = recentStudyAvg();
-  const sched = [...state.schedule].sort((a, b) => a.start.localeCompare(b.start));
   return `
   <section class="panel">
     <div class="toolbar">
@@ -17,18 +16,18 @@ function studyTimeSection() {
         <button class="${manual ? 'on' : ''}" data-action="hours-mode" data-mode="manual">직접 입력</button>
       </div>
     </div>
-    ${manual ? '<p class="muted small">요일별 공부 가능 시간을 직접 입력합니다. 마감 전 가용 시간은 아래 시간표를 뺀 빈 시간에 나눠 계산됩니다.</p>' : `
-    <p class="muted small">하루 활동 시간에서 아래 시간표의 수업·알바를 빼고, 식사·이동·휴식 시간을 뺀 나머지를 공부 가능 시간으로 계산합니다.</p>
+    ${manual ? '<p class="muted small">요일별 공부 시간 직접 입력</p>' : `
+    <p class="muted small">활동 시간 − 일정 − 생활 시간 = 공부 가능 시간</p>
     <div class="row">
       <label class="form">하루 활동 시간
         <span class="inline" style="margin:0"><input type="time" data-setting="dayStart" value="${s.dayStart}"> ~ <input type="time" data-setting="dayEnd" value="${s.dayEnd}"></span>
-        <span class="muted small">종료가 시작보다 이르면 다음 날 새벽까지로 계산</span>
+        <span class="muted small">종료 &lt; 시작이면 다음 날 새벽까지</span>
       </label>
       <label class="form">식사·이동·휴식 (h/일)<input type="number" min="0" max="12" step="0.5" data-setting="lifeHours" value="${s.lifeHours}"></label>
       <label class="form">하루 최대 공부 (h)<input type="number" min="0.5" max="16" step="0.5" data-setting="maxStudy" value="${s.maxStudy}"></label>
     </div>`}
     <div class="table-wrap"><table class="table cap-table">
-      <thead><tr><th>요일 (이번 주)</th><th>활동</th><th>수업·알바·일정</th><th>빈 시간</th><th>생활</th><th>공부 가능</th></tr></thead>
+      <thead><tr><th>이번 주</th><th>활동</th><th>일정</th><th>빈 시간</th><th>생활</th><th>공부 가능</th></tr></thead>
       <tbody>${days.map(({ d, i, c }) => `<tr>
         <td>${d}</td><td>${fmtH(c.winH)}</td><td>${c.fixedH ? fmtH(c.fixedH) : '—'}</td><td>${fmtH(c.freeH)}</td>
         <td>${manual ? '—' : fmtH(c.lifeH)}</td>
@@ -37,31 +36,19 @@ function studyTimeSection() {
       </tr>`).join('')}</tbody>
       <tfoot><tr><td colspan="5">주간 합계</td><td><b>${fmtH(weeklyHours(ws))}</b></td></tr></tfoot>
     </table></div>
-    ${recent ? `<p class="muted small">참고: 최근 14일 동안 기록이 있는 ${recent.days}일의 평균 학습 시간은 <b>${fmtH(recent.avg)}</b>입니다.</p>` : ''}
+    ${recent ? `<p class="muted small">최근 14일 실제 평균 <b>${fmtH(recent.avg)}</b>/일</p>` : ''}
 
-    <h4>수업·아르바이트 시간표</h4>
-    ${sched.length ? `<div class="sched">${WEEKDAYS.map((d, i) => {
-      const items = sched.filter((x) => Number(x.day) === i);
-      return items.length ? `<div class="sched-row"><b>${d}</b><div class="chips">${items.map((x) => `
-        <span class="chip-tag">${x.start}~${x.end} ${esc(x.label)} <button class="btn xs" data-action="del-schedule" data-sid="${x.id}" title="삭제">✕</button></span>`).join('')}</div></div>` : '';
-    }).join('')}</div>` : '<p class="muted small">등록된 고정 일정이 없습니다. 수업·알바를 등록하면 공부 가능 시간에 바로 반영됩니다.</p>'}
-    <form class="inline" data-form="add-schedule">
-      <span class="daychks">${WEEKDAYS.map((d, i) => `<label class="daychk"><input type="checkbox" name="days" value="${i}"><span>${d}</span></label>`).join('')}</span>
+    <h4>일정 <span class="muted small">수업·알바·약속 → 공부 시간에서 자동 제외</span></h4>
+    ${scheduleList()}
+    <form class="inline sched-form" data-form="add-schedule" data-mode="weekly">
+      <span class="rsegs">${[['once', '하루만'], ['weekly', '매주 반복'], ['monthly', '매월 반복']].map(([v, l]) =>
+        `<label class="rseg"><input type="radio" name="repeat" value="${v}" ${v === 'weekly' ? 'checked' : ''}><span>${l}</span></label>`).join('')}</span>
+      <span class="f-once"><input type="date" name="date" value="${ymd(new Date())}"></span>
+      <span class="f-weekly daychks">${WEEKDAYS.map((d, i) => `<label class="daychk"><input type="checkbox" name="days" value="${i}"><span>${d}</span></label>`).join('')}</span>
+      <span class="f-monthly">매월 <input type="number" name="mday" min="1" max="31" value="${new Date().getDate()}" style="width:64px"> 일</span>
       <input type="time" name="start" required><input type="time" name="end" required>
-      <input name="label" placeholder="예: 자료구조 수업 / 카페 알바" required maxlength="30">
-      <button class="btn sm">추가</button>
-    </form>
-    <p class="muted small" style="margin:4px 0 0">요일을 여러 개 고르면 한 번에 추가됩니다 (예: 월·수 수업).</p>
-
-    <h4>하루 일정 (약속·행사 등 반복되지 않는 일정)</h4>
-    ${upcomingEvents().length ? `<div class="chips">${upcomingEvents().map((x) => `
-      <span class="chip-tag">${fmtDay(new Date(`${x.date}T00:00`))} ${x.start}~${x.end} ${esc(x.label)} <button class="btn xs" data-action="del-event" data-eid="${x.id}" title="삭제">✕</button></span>`).join('')}</div>`
-      : '<p class="muted small">등록된 하루 일정이 없습니다. 그날의 공부 가능 시간에서 자동으로 빠집니다.</p>'}
-    <form class="inline" data-form="add-event">
-      <input type="date" name="date" value="${ymd(new Date())}" required>
-      <input type="time" name="start" required><input type="time" name="end" required>
-      <input name="label" placeholder="예: 동아리 모임 / 가족 행사" required maxlength="30">
-      <button class="btn sm">추가</button>
+      <input name="label" placeholder="예: 자료구조 수업" required maxlength="30">
+      <button class="btn sm primary">추가</button>
     </form>
   </section>`;
 }
@@ -84,7 +71,7 @@ const backupText = () => (state.lastBackup ? `마지막 백업: ${backupDays() ?
 // 일주일 넘게 백업하지 않았으면 설정 맨 위에 알림
 function backupReminder() {
   if (DEMO || !state.tasks.length || (state.lastBackup && backupDays() < 7)) return '';
-  return `<div class="alert warn backup-alert"><b>백업</b> · ${backupText()} · 브라우저 기록을 지우면 데이터가 사라집니다
+  return `<div class="alert warn backup-alert"><b>백업</b> · ${backupText()}
     <button class="btn xs" data-action="export-json">지금 백업</button></div>`;
 }
 
@@ -107,7 +94,7 @@ function renderSettings() {
     <div class="row">
       <label class="form">임박 마감 경고 기준
         <select data-setting="alertHours">${[6, 12, 24, 48, 72].map((h) => `<option value="${h}" ${h === s.alertHours ? 'selected' : ''}>마감 ${h}시간 전</option>`).join('')}</select>
-        <label class="check"><input type="checkbox" data-setting="deadlineNotify" ${s.deadlineNotify ? 'checked' : ''}> 브라우저 알림도 보내기 (이 기준 시점 + 1시간 전)</label>
+        <label class="check"><input type="checkbox" data-setting="deadlineNotify" ${s.deadlineNotify ? 'checked' : ''}> 브라우저 알림 (기준 시점·1시간 전)</label>
       </label>
       <label class="form">테마
         <select data-setting="theme">
@@ -128,7 +115,7 @@ function renderSettings() {
       <button class="btn" data-action="load-sample">샘플 데이터 불러오기</button>
       <button class="btn danger" data-action="reset-data">데이터 초기화</button>
     </div>
-    <p class="muted small">${backupText()} · 모든 데이터는 이 브라우저에만 저장됩니다. 다른 기기에서 쓰려면 JSON 백업 파일을 그 기기에서 "JSON 복원"으로 불러오세요.</p>
+    <p class="muted small">${backupText()} · 이 브라우저에만 저장 · 다른 기기는 JSON 복원</p>
   </section>`;
 }
 
@@ -171,31 +158,43 @@ function setHoursMode(mode) {
   save(); render();
 }
 
+// 일정 목록: 매주(요일별) · 매월 · 하루만(지난 일정은 숨김)
+function scheduleList() {
+  const byStart = (a, b) => a.start.localeCompare(b.start);
+  const chip = (x, when) => `<span class="chip-tag">${when}${x.start}~${x.end} ${esc(x.label)} <button class="btn xs" data-action="del-schedule" data-sid="${x.id}" title="삭제">✕</button></span>`;
+  const weekly = state.schedule.filter((x) => (x.repeat || 'weekly') === 'weekly').sort(byStart);
+  const monthly = state.schedule.filter((x) => x.repeat === 'monthly').sort((a, b) => a.mday - b.mday || byStart(a, b));
+  const once = state.schedule.filter((x) => x.repeat === 'once' && x.date >= ymd(new Date())).sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+  if (!weekly.length && !monthly.length && !once.length) return '<p class="muted small">일정 없음</p>';
+  const rows = WEEKDAYS.map((d, i) => {
+    const items = weekly.filter((x) => Number(x.day) === i);
+    return items.length ? `<div class="sched-row"><b>${d}</b><div class="chips">${items.map((x) => chip(x, '')).join('')}</div></div>` : '';
+  });
+  if (monthly.length) rows.push(`<div class="sched-row"><b>매월</b><div class="chips">${monthly.map((x) => chip(x, `${x.mday}일 `)).join('')}</div></div>`);
+  if (once.length) rows.push(`<div class="sched-row"><b>하루</b><div class="chips">${once.map((x) => chip(x, `${fmtDay(new Date(`${x.date}T00:00`))} `)).join('')}</div></div>`);
+  return `<div class="sched">${rows.join('')}</div>`;
+}
+
 function addSchedule(form) {
   const fd = new FormData(form);
   const d = Object.fromEntries(fd);
-  const days = fd.getAll('days').map(Number);
-  if (!days.length) return toast('요일을 하나 이상 고르세요');
-  if (toMin(d.end) <= toMin(d.start)) return toast('종료 시간이 시작 시간보다 늦어야 합니다');
-  days.forEach((day) => state.schedule.push({ id: uid(), day, start: d.start, end: d.end, label: d.label.trim() }));
+  const repeat = d.repeat || 'weekly';
+  if (toMin(d.end) <= toMin(d.start)) return toast('종료 시간이 시작보다 늦어야 합니다');
+  const base = { start: d.start, end: d.end, label: d.label.trim(), repeat };
+  if (repeat === 'weekly') {
+    const days = fd.getAll('days').map(Number);
+    if (!days.length) return toast('요일을 고르세요');
+    days.forEach((day) => state.schedule.push({ id: uid(), ...base, day }));
+  } else if (repeat === 'once') {
+    if (!d.date) return toast('날짜를 고르세요');
+    state.schedule.push({ id: uid(), ...base, date: d.date });
+  } else {
+    const mday = Number(d.mday);
+    if (!(mday >= 1 && mday <= 31)) return toast('1~31일 중에 고르세요');
+    state.schedule.push({ id: uid(), ...base, mday });
+  }
   save(); render();
-  toast(`${days.map((i) => WEEKDAYS[i]).join('·')} 일정을 추가했습니다`);
-}
-
-// 하루 일정: 지난 일정은 목록에서 숨긴다
-const upcomingEvents = () => state.events.filter((x) => x.date >= ymd(new Date())).sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
-
-function addEvent(form) {
-  const d = Object.fromEntries(new FormData(form));
-  if (!d.date) return toast('날짜를 고르세요');
-  if (toMin(d.end) <= toMin(d.start)) return toast('종료 시간이 시작 시간보다 늦어야 합니다');
-  state.events.push({ id: uid(), date: d.date, start: d.start, end: d.end, label: d.label.trim() });
-  save(); render();
-}
-
-function delEvent(eid) {
-  state.events = state.events.filter((x) => x.id !== eid);
-  save(); render();
+  toast('일정을 추가했습니다');
 }
 
 function delSchedule(sid) {

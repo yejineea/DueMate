@@ -36,7 +36,7 @@ function renderCalendar() {
       <div class="cal-cell ${other ? 'other' : ''} ${ds === today ? 'today' : ''} ${ds === cal.selected ? 'selected' : ''} ${pending >= 2 ? 'clash' : ''}"
            data-action="cal-select" data-date="${ds}">
         <div class="cal-date">${d.getDate()} ${pending >= 2 ? '<span class="clash-tag">겹침</span>' : ''}</div>
-        ${(state.events || []).filter((x) => x.date === ds).map((x) => `<div class="chip event" title="${esc(x.label)} ${x.start}~${x.end}">${x.start} ${esc(x.label)}</div>`).join('')}
+        ${state.schedule.filter((x) => x.repeat && x.repeat !== 'weekly' && occursOn(x, d)).map((x) => `<div class="chip event" title="${esc(x.label)} ${x.start}~${x.end}">${x.start} ${esc(x.label)}</div>`).join('')}
         ${ts.slice(0, limit).map((t) => `<div class="chip ${t.done ? 'done' : ''} ${t.type === '시험' ? 'exam' : ''}" title="${esc(t.title)}">${esc(t.title)}</div>`).join('')}
         ${ts.length > limit ? `<div class="muted small">+${ts.length - limit}개</div>` : ''}
       </div>`;

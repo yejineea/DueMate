@@ -1,5 +1,5 @@
-const VIEWS = { pomodoro: 'renderFocus', todo: 'renderTodo', achieve: 'renderAchievements', report: 'renderAnalytics', settings: 'renderSettings' };
-const TAB_ALIAS = { today: 'pomodoro', tasks: 'todo', calendar: 'todo', analytics: 'report' };
+const VIEWS = { pomodoro: 'renderFocus', todo: 'renderTodo', report: 'renderAnalytics', achieve: 'renderAchievements', settings: 'renderSettings' };
+const TAB_ALIAS = { today: 'pomodoro', tasks: 'todo', calendar: 'todo', analytics: 'report', grow: 'achieve' };
 let currentTab = TAB_ALIAS[params.get('tab')] || (VIEWS[params.get('tab')] ? params.get('tab') : 'pomodoro');
 
 function render() {
@@ -26,7 +26,6 @@ const actions = {
   'edit-sub': (el) => editSub(el.dataset.id, el.dataset.sid),
   'cancel-sub': () => { taskUI.editSub = null; render(); },
   'toast-undo': () => runToastUndo(),
-  'del-event': (el) => delEvent(el.dataset.eid),
   'del-sub': (el) => delSub(el.dataset.id, el.dataset.sid),
   'fill-template': () => fillTemplate(),
   'close-modal': () => closeModal(),
@@ -68,7 +67,6 @@ const forms = {
   'add-sub': (f) => addSub(f.dataset.id, new FormData(f).get('text')),
   'add-grade': (f) => addGrade(f),
   'add-schedule': (f) => addSchedule(f),
-  'add-event': (f) => addEvent(f),
   'edit-sub': (f) => saveSub(f),
   'add-subject': (f) => addSubject(new FormData(f).get('subject')),
 };
@@ -101,6 +99,7 @@ document.addEventListener('input', (e) => { if (e.target.form && e.target.form.d
 document.addEventListener('change', (e) => {
   const el = e.target;
   if (el.form && el.form.dataset.form === 'task') return onTaskFormInput(el);
+  if (el.name === 'repeat' && el.form) { el.form.dataset.mode = el.value; return; }
   if (el.dataset.planAdd !== undefined) return planAdd(el.value);
   if (el.dataset.filter) return onFilterChange(el);
   if (el.dataset.grade) return onGradeChange(el);

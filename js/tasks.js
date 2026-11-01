@@ -155,12 +155,12 @@ function openTaskForm(id, date) {
           <input type="number" name="estHours" min="0.5" max="300" step="0.5" value="${est}" required> <span class="small">시간</span>
           <label class="check"><input type="checkbox" name="estAuto" ${auto ? 'checked' : ''}> 자동 계산</label>
         </div>
-        <div class="muted small" id="est-basis">${auto ? esc(estimateBasis(e)) : '직접 입력한 값입니다. "자동 계산"을 켜면 유형·난이도·내 기록으로 다시 계산합니다.'}</div>
+        <div class="muted small" id="est-basis">${auto ? esc(estimateBasis(e)) : '직접 입력 · 자동 계산을 켜면 다시 계산'}</div>
       </div>
       <details class="more">
         <summary>하위 작업 · 설명 · 메모 (선택)</summary>
         ${t ? '' : `
-          <div class="toolbar" style="margin:8px 0 0"><span class="small">하위 작업 (한 줄에 하나, 개수가 예상 시간에 반영됩니다)</span>
+          <div class="toolbar" style="margin:8px 0 0"><span class="small">하위 작업 (한 줄에 하나)</span>
             <button type="button" class="btn xs" data-action="fill-template">유형별 템플릿 채우기</button></div>
           <textarea name="subs" rows="4" placeholder="예) 자료 조사&#10;PPT 제작&#10;발표 연습"></textarea>`}
         <label>과제 설명<textarea name="desc" rows="2">${esc(d.desc)}</textarea></label>
@@ -191,7 +191,7 @@ function formSubCount(form) {
 function updateFormEstimate(form) {
   const f = form.elements;
   const basis = $('#est-basis', form);
-  if (!f.estAuto.checked) { basis.textContent = '직접 입력한 값입니다. "자동 계산"을 켜면 유형·난이도·내 기록으로 다시 계산합니다.'; return; }
+  if (!f.estAuto.checked) { basis.textContent = '직접 입력 · 자동 계산을 켜면 다시 계산'; return; }
   const e = estimateFor({ type: f.type.value, difficulty: f.difficulty.value, subCount: formSubCount(form) });
   f.estHours.value = e.hours;
   basis.textContent = estimateBasis(e);

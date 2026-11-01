@@ -252,9 +252,7 @@ main[data-current="pomodoro"] { max-width: 1320px; }
 .plan-extra { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
 .plan-add { font-size: 13px; padding: 5px 8px; }
 /* 성과 탭 */
-.tomato-guide { display: flex; gap: 16px; align-items: center; }
-.tg-icon { font-size: 44px; }
-.big-count { font-size: 20px; margin: 6px 0 8px; }
+.big-count { font-size: 18px; margin: 4px 0 8px; }
 .big-count b { font-size: 44px; color: var(--tomato); }
 .goal-bar { height: 10px; }
 .goal-bar span { background: var(--tomato); }
@@ -268,11 +266,9 @@ main[data-current="pomodoro"] { max-width: 1320px; }
 .stat-grid .num { font-size: 26px; font-weight: 800; color: var(--text); }
 .stat-grid small { font-size: 13px; margin-left: 2px; }
 .badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.badge-card { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; opacity: .45; }
-.badge-card.on { opacity: 1; }
-.badge-card .bi { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; background: var(--line); color: var(--muted); }
-.badge-card.on .bi.red { background: var(--red); color: #fff; }
-.badge-card.on .bi.green { background: var(--green-dark); color: #fff; }
+.badge-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; opacity: .4; filter: grayscale(1); }
+.badge-card.on { opacity: 1; filter: none; border-color: var(--red); background: var(--red-weak); }
+.badge-card .bi { font-size: 30px; }
 
 /* 단계 진행 */
 .step { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
@@ -288,3 +284,27 @@ main[data-current="pomodoro"] { max-width: 1320px; }
 .sub-edit input { flex: 1; }
 .chip.event { background: var(--line); color: var(--text); }
 .backup-alert { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* 토마토 키우기 */
+.plant-card { display: flex; flex-direction: column; align-items: center; }
+.plant-card .toolbar { width: 100%; }
+.plant { width: 220px; height: 240px; }
+.plant-stage { font-size: 14px; }
+.plant-stage b { color: var(--red); }
+.pl-stem { fill: none; stroke: var(--green-dark); stroke-width: 4; stroke-linecap: round; }
+.pl-leaf { fill: var(--green); }
+.pl-bud { fill: var(--green-dark); }
+.pl-green { fill: var(--green); stroke: var(--green-dark); stroke-width: 1.5; }
+.pl-fruit { fill: var(--red); }
+.pl-cap { fill: none; stroke: var(--green-dark); stroke-width: 2; stroke-linecap: round; }
+.pl-seed { fill: var(--green-dark); }
+.pl-soil { fill: var(--muted); opacity: .5; }
+.pl-pot { fill: var(--line); stroke: var(--muted); stroke-width: 1.5; }
+/* 일정: 하루만 / 매주 / 매월 */
+.rsegs { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.rseg input { display: none; }
+.rseg span { display: inline-block; padding: 6px 10px; font-size: 13px; cursor: pointer; }
+.rseg input:checked + span { background: var(--red); color: #fff; font-weight: 700; }
+.sched-form .f-once, .sched-form .f-weekly, .sched-form .f-monthly { display: none; align-items: center; gap: 4px; font-size: 13px; }
+.sched-form[data-mode="once"] .f-once, .sched-form[data-mode="weekly"] .f-weekly, .sched-form[data-mode="monthly"] .f-monthly { display: inline-flex; }
+.sched-row > b { width: 32px; }

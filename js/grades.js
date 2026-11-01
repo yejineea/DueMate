@@ -33,7 +33,7 @@ function renderGrades() {
   <section class="panel">
     <div class="toolbar">
       <select data-filter="grade-subject">${subjects.map((s) => `<option value="${esc(s)}" ${s === gradeSubject ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
-      <span class="muted small">점수를 비워두면 '미입력' 항목으로 분류됩니다.</span>
+      <span class="muted small">빈 점수 = 미입력</span>
     </div>
     <table class="table">
       <thead><tr><th>평가 항목</th><th>반영 비율(%)</th><th>만점</th><th>취득 점수</th><th>환산 점수</th><th></th></tr></thead>
@@ -42,7 +42,7 @@ function renderGrades() {
           <td>${cell(it, 'name', 'text')}</td><td>${cell(it, 'weight')}</td><td>${cell(it, 'max')}</td><td>${cell(it, 'score')}</td>
           <td>${it.score === null ? '<span class="muted">미입력</span>' : ((Number(it.score) / Number(it.max)) * Number(it.weight)).toFixed(2)}</td>
           <td><button class="btn xs danger" data-action="del-grade" data-gid="${it.id}">✕</button></td>
-        </tr>`).join('') || '<tr><td colspan="6" class="empty">평가 항목을 추가하세요 (예: 중간고사 30%, 과제 30%, 출석 10%)</td></tr>'}
+        </tr>`).join('') || '<tr><td colspan="6" class="empty">평가 항목 추가 (예: 중간고사 30%)</td></tr>'}
       </tbody>
     </table>
     <form class="inline" data-form="add-grade">

@@ -52,7 +52,7 @@ function slideHtml(r, i, n, isPlanFirst) {
       ${pomoRing(t.id)}
       ${stepAsk && stepAsk.taskId === t.id && next && next.id === stepAsk.sid ? `
       <div class="step-ask">
-        <span>🍅 집중 끝! <b>'${esc(next.text)}'</b> 단계를 끝냈나요?</span>
+        <span>🍅 끝! <b>${esc(next.text)}</b> 끝냈나요?</span>
         <button class="btn sm primary" data-action="step-yes" data-id="${t.id}" data-sid="${next.id}">끝냈어요</button>
         <button class="btn sm" data-action="step-no">아직이에요</button>
       </div>` : ''}
@@ -61,7 +61,7 @@ function slideHtml(r, i, n, isPlanFirst) {
           <span class="step-count">단계 ${t.subtasks.indexOf(next) + 1}/${t.subtasks.length}</span>
           <span class="small">다음 단계 <b>${esc(next.text)}</b></span>
           <button class="btn xs" data-action="step-yes" data-id="${t.id}" data-sid="${next.id}" title="이 단계를 끝내고 다음 단계로">✓ 끝냄</button>
-        </span>` : t.subtasks.length ? '' : '<span class="small muted">단계 없음 · ToDo에서 하위 작업을 추가하면 단계별로 진행할 수 있어요</span>'}
+        </span>` : t.subtasks.length ? '' : '<span class="small muted">단계 없음</span>'}
         <button class="btn sm" data-action="toggle-done" data-id="${t.id}">완료 처리</button>
       </div>
     </div>`;
@@ -166,7 +166,7 @@ function planPanel(tp, recs) {
         ${first ? ctl(s.t.id) : `<span class="slot-pomo muted">🍅×${s.pomos}</span><span></span>`}
       </div>`;
     }).join('')}</div>`
-    : `<p class="muted small">${tp.capMin < pm.focus ? '오늘 남은 공부 가능 시간이 없습니다. 내일 계획은 자정 이후 다시 계산됩니다.' : '배정할 작업이 없습니다.'}</p>`;
+    : `<p class="muted small">${tp.capMin < pm.focus ? '남은 공부 시간 없음 · 내일 다시 계산' : '배정할 작업 없음'}</p>`;
   const inPlan = new Set(tp.items.map((it) => it.t.id));
   const addable = recs.filter((r) => !inPlan.has(r.t.id));
   const extra = `
@@ -179,7 +179,7 @@ function planPanel(tp, recs) {
     tp.overflow > 0 ? `<div class="alert warn"><b>시간 초과</b> · 🍅 ${tp.overflow}개는 오늘 남은 빈 시간에 들어가지 않아 빠졌습니다</div>` : '',
   ].join('');
   return `<section class="panel">${head}${body}${extra}${warn ? `<div class="alerts" style="margin-top:10px">${warn}</div>` : ''}
-    <p class="muted small" style="margin-bottom:0">🍅 1개 = ${pm.focus}분 집중 + ${pm.short}분 휴식 · 자동: 오늘 몫(마감까지 고르게 나눈 양) 먼저, 남는 시간은 우선순위 순 · 개수를 바꾼 과제는 고정, 나머지는 남는 시간으로 다시 배정 · 수정은 오늘만 유지</p></section>`;
+    <p class="muted small" style="margin-bottom:0">🍅 = ${pm.focus}분 집중 + ${pm.short}분 휴식 · 바꾼 개수는 고정, 나머지 자동 · 수정은 오늘만</p></section>`;
 }
 
 // 뽀모도로 탭: 왼쪽 과제 슬라이드(가운데 타이머) | 오른쪽 오늘 계획 → 핵심 경고 → 7일 내 마감 → 뽀모도로 설정
@@ -189,8 +189,8 @@ function renderFocus() {
   if (!recs.length) {
     slideIds = [];
     return `<section class="panel hero"><div class="hero-label">${all.length ? '모두 끝냈습니다' : '시작하기'}</div>
-      <h2>${all.length ? '남은 과제가 없습니다 🎉' : '과제를 등록하면 지금 할 일을 골라 드립니다'}</h2>
-      <p class="muted">마감일·유형·난이도를 입력하면, 시간표를 뺀 실제 빈 시간에 맞춰 오늘의 뽀모도로 계획을 짭니다.</p>
+      <h2>${all.length ? '남은 과제 없음 🎉' : '과제를 추가해 보세요'}</h2>
+      <p class="muted">마감·유형만 넣으면 오늘 계획을 짜 드려요</p>
       <div class="toolbar"><button class="btn primary" data-action="new-task">+ 과제 추가</button>
       ${all.length ? '' : '<button class="btn" data-action="load-sample">샘플 데이터로 체험</button>'}</div></section>
       ${pomodoroSection()}`;

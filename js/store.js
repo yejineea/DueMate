@@ -9,7 +9,6 @@ function defaultState() {
     schedule: [],
     grades: {},
     timer: null, // 지금 다루는 타이머 (진행 중이거나 방금 멈춘 것)
-    events: [], // 하루 일정 { id, date, start, end, label }
     notified: [], // 보낸 마감 알림 키 (같은 알림 반복 방지)
     lastBackup: null,
     planEdit: null, // 오늘 계획 직접 수정 { date, pomos: {과제 id: 개수(0=제외)}, order: [과제 id] }
@@ -39,7 +38,10 @@ function normalize(data) {
   }
   // 없어졌거나 완료된 과제의 보관 타이머 정리
   s.timers = Object.fromEntries(Object.entries(s.timers || {}).filter(([id]) => s.tasks.some((t) => t.id === id && !t.done)));
-  s.events = (s.events || []).filter((x) => x.date >= ymd(addDays(new Date(), -30)));
+  // 일정 하나로 통합: v1 시간표 = 매주, 이전 버전 하루 일정(events) = 하루만. 30일 지난 하루 일정은 정리
+  s.schedule = [...(s.schedule || []).map((x) => ({ repeat: 'weekly', ...x })), ...(s.events || []).map((x) => ({ ...x, repeat: 'once' }))]
+    .filter((x) => x.repeat !== 'once' || x.date >= ymd(addDays(new Date(), -30)));
+  delete s.events;
   rollSample(s);
   refreshAutoEstimates(s);
   return s;
@@ -180,7 +182,9 @@ function sampleState() {
     fixed(3, '10:30', '12:00', '웹프로그래밍 수업'), fixed(3, '13:00', '15:00', '경영학원론 수업'),
     fixed(4, '10:30', '12:00', '통계학 수업'), fixed(4, '18:00', '22:00', '카페 아르바이트'), fixed(5, '12:00', '18:00', '카페 아르바이트'),
   ];
-  s.events = [{ id: uid(), date: ymd(addDays(new Date(), 2)), start: '18:00', end: '21:00', label: '동아리 모임' }];
+  s.schedule.forEach((x) => { x.repeat = 'weekly'; });
+  s.schedule.push({ id: uid(), repeat: 'once', date: ymd(addDays(new Date(), 2)), start: '18:00', end: '21:00', label: '동아리 모임' });
+  s.schedule.push({ id: uid(), repeat: 'monthly', mday: 25, start: '19:00', end: '21:00', label: '학회 정기 모임' });
   refreshAutoEstimates(s);
   return s;
 }

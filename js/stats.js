@@ -11,7 +11,7 @@ function renderAnalytics() {
 function weekChart(wk) {
   const max = Math.max(1, ...wk.days.map((d) => Math.max(d.load, d.avail)));
   return wk.days.map((d) => hRow(fmtDay(d.date), d.load, max, `${d.load.toFixed(1)}h / 가능 ${+d.avail.toFixed(1)}h`, d.crunch)).join('')
-    + '<p class="muted small">막대: 그날 마감인 과제의 남은 작업 시간 · 빨간색: 마감 전까지 시간이 부족한 날</p>';
+    + '<p class="muted small">막대 = 그날 마감 작업 · 빨강 = 시간 부족</p>';
 }
 
 function futureWeeks() {
@@ -25,9 +25,9 @@ function calibrationPanel() {
   const cal = calibration();
   const rows = Object.entries(cal.byType).filter(([, c]) => c.n);
   return `<div class="cal-box">
-    <b>내 예상 보정</b> <span class="muted small">완료한 과제의 실제 기록 ÷ 예상 시간. 자동 계산 과제의 예상 시간에 곱해집니다.</span>
+    <b>내 예상 보정</b> <span class="muted small">실제 ÷ 예상 · 자동 예상 시간에 반영</span>
     <div class="chips" style="margin-top:6px">${rows.length ? rows.map(([type, c]) => `<span class="chip-tag">${esc(type)} ×${c.ratio.toFixed(2)} <span class="muted small">(${c.n}건)</span></span>`).join('')
-      : '<span class="muted small">아직 기록이 있는 완료 과제가 없어 기본값(×1.00)을 씁니다.</span>'}
+      : '<span class="muted small">완료 기록 없음 · 기본 ×1.00</span>'}
       <span class="chip-tag">전체 ×${cal.overall.toFixed(2)}</span></div>
   </div>`;
 }
@@ -83,7 +83,7 @@ function renderStats() {
   </section>
   <section class="grid2">
     <div class="panel"><h3>앞으로 7일 작업량 vs 공부 가능 시간</h3>${weekChart(weekLoad(startOfDay(new Date())))}</div>
-    <div class="panel"><h3>향후 4주 작업량 (7일 단위)</h3>${futureWeeks()}<p class="muted small">남은 작업 시간 / 자동 계산된 공부 가능 시간</p></div>
+    <div class="panel"><h3>향후 4주 작업량 (7일 단위)</h3>${futureWeeks()}<p class="muted small">남은 작업 / 공부 가능</p></div>
   </section>
   <section class="grid2">
     <div class="panel"><h3>최근 14일 뽀모도로</h3>${vChart(dailyPomo)}</div>

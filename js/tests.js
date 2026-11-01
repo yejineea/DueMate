@@ -80,10 +80,21 @@ describe('하루 일정', () => {
     near(dayCapacity(MON).fixedH, 3);
     near(dayCapacity(addDays(MON, 7)).fixedH, 0, '다음 주 월요일은 영향 없음');
   });
-  test('30일 넘게 지난 하루 일정은 불러올 때 정리된다', () => {
+  test('이전 버전의 하루 일정(events)은 일정(하루만)으로 옮기고, 30일 넘게 지난 것은 정리한다', () => {
     const s = normalize({ events: [{ id: 'old', date: ymd(addDays(new Date(), -40)), start: '10:00', end: '11:00', label: 'x' },
       { id: 'new', date: ymd(new Date()), start: '10:00', end: '11:00', label: 'y' }] });
-    eq(s.events.map((x) => x.id), ['new']);
+    eq(s.schedule.filter((x) => x.repeat === 'once').map((x) => x.id), ['new']);
+    eq(s.events, undefined);
+  });
+  test('매월 반복 일정은 그 날짜에만 빠진다 (매월 2일)', () => {
+    fresh({ maxStudy: 12 }, { schedule: [{ id: 'm', repeat: 'monthly', mday: 2, start: '10:00', end: '12:00', label: '정기' }] });
+    near(dayCapacity(MON).fixedH, 2, '11/2');
+    near(dayCapacity(addDays(MON, 1)).fixedH, 0, '11/3');
+    near(dayCapacity(new Date('2026-12-02T00:00')).fixedH, 2, '12/2');
+  });
+  test('v1 시간표(반복 정보 없음)는 매주 반복으로 본다', () => {
+    const s = normalize({ schedule: [{ id: 'w', day: 0, start: '09:00', end: '12:00', label: '수업' }] });
+    eq(s.schedule[0].repeat, 'weekly');
   });
 });
 
@@ -261,9 +272,22 @@ describe('성과 집계', () => {
   test('성과 탭이 샘플·빈 데이터에서 그려지고 토마토 설명이 있다', () => {
     state = sampleState();
     const html = renderAchievements();
-    ok(html.includes('토마토(🍅)란?') && html.includes('이번 주 모은 토마토'), '설명·주간 카드');
+    ok(html.includes('class="plant"') && html.includes('주간 목표'), '화분·주간 카드');
     state = defaultState();
-    ok(renderAchievements().includes('아직 없습니다'), '빈 데이터');
+    ok(renderAchievements().includes('씨앗'), '빈 데이터 = 씨앗 단계');
+  });
+});
+
+describe('토마토 키우기', () => {
+  test('주간 목표 대비 🍅 비율로 자라는 단계가 정해진다', () => {
+    eq([0, 1, 5, 10, 15, 19, 20, 30].map((n) => STAGES[plantStage(n, 20)]),
+      ['씨앗', '새싹', '줄기', '꽃봉오리', '초록 토마토', '초록 토마토', '빨간 토마토', '빨간 토마토']);
+  });
+  test('단계마다 화분 그림이 달라진다 (열매 수·색)', () => {
+    ok(!plantSvg(0, 20).includes('pl-stem'), '씨앗은 줄기 없음');
+    ok(plantSvg(12, 20).includes('pl-bud'), '꽃봉오리');
+    ok(plantSvg(16, 20).includes('pl-green'), '초록 토마토');
+    eq((plantSvg(20, 20).match(/pl-fruit/g) || []).length, 6, '빨간 토마토 6개');
   });
 });
 
@@ -570,7 +594,7 @@ describe('샘플 데이터 날짜 자동 이동', () => {
 });
 
 describe('화면 렌더링', () => {
-  const views = { 뽀모도로: () => renderFocus(), ToDo: () => renderTasks(), 성과: () => renderAchievements(), 캘린더: () => renderCalendar(),
+  const views = { 뽀모도로: () => renderFocus(), ToDo: () => renderTasks(), '토마토 키우기': () => renderAchievements(), 캘린더: () => renderCalendar(),
     통계: () => renderStats(), 성적: () => renderGrades(), 설정: () => renderSettings() };
   Object.entries(views).forEach(([name, fn]) => {
     test(`${name} 화면이 샘플 데이터와 빈 데이터에서 오류 없이 그려진다`, () => {
@@ -781,6 +805,17 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     ok(!$('form[data-form="edit-sub"]'), '입력칸 닫힘');
     taskUI.open.delete(t.id);
   });
+  test('일정 추가에서 매월 반복을 고르면 그 날짜로 반복된다', () => {
+    show('settings');
+    state.schedule = []; render();
+    const f = $('form[data-form="add-schedule"]');
+    const m = f.querySelector('[name="repeat"][value="monthly"]');
+    m.checked = true; m.dispatchEvent(new Event('change', { bubbles: true }));
+    f.elements.mday.value = '15'; f.elements.start.value = '18:00'; f.elements.end.value = '20:00'; f.elements.label.value = '정기 모임';
+    f.requestSubmit();
+    eq([state.schedule[0].repeat, state.schedule[0].mday], ['monthly', 15]);
+    ok($('#view').textContent.includes('15일'), '목록에 매월 15일');
+  });
   test('시간표는 요일 여러 개를 골라 한 번에 추가한다', () => {
     show('settings');
     state.schedule = []; render();
@@ -791,14 +826,18 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     f.requestSubmit();
     eq(state.schedule.map((x) => x.day).sort(), [0, 2]);
   });
-  test('설정에서 하루 일정을 추가하면 그날 공부 가능 시간이 줄어든다', () => {
+  test('일정 추가에서 하루만을 고르면 그날만 공부 가능 시간이 줄어든다', () => {
     show('settings');
-    state.events = []; state.schedule = []; render(); // 시간표와 겹치지 않게
+    state.schedule = []; render(); // 다른 일정과 겹치지 않게
     const date = ymd(addDays(new Date(), 3));
     const before = dayCapacity(new Date(`${date}T00:00`)).fixedH;
-    const f = $('form[data-form="add-event"]');
+    const f = $('form[data-form="add-schedule"]');
+    const once = f.querySelector('[name="repeat"][value="once"]');
+    once.checked = true; once.dispatchEvent(new Event('change', { bubbles: true }));
+    eq(f.dataset.mode, 'once', '하루만 입력칸으로 전환');
     f.elements.date.value = date; f.elements.start.value = '19:00'; f.elements.end.value = '21:00'; f.elements.label.value = '약속';
     f.requestSubmit();
+    eq(state.schedule[0].repeat, 'once');
     near(dayCapacity(new Date(`${date}T00:00`)).fixedH - before, 2);
     ok($('#view').textContent.includes('약속'), '목록 표시');
   });

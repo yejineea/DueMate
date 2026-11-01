@@ -32,6 +32,14 @@ function subtractIntervals([ws, we], holes) {
   return out.filter(([s, e]) => e > s);
 }
 
+// 일정 반복: once(하루만, date) · weekly(매주, day=월0~일6) · monthly(매월, mday). repeat가 없으면 매주(v1 시간표)
+function occursOn(x, d) {
+  const repeat = x.repeat || 'weekly';
+  if (repeat === 'once') return x.date === ymd(d);
+  if (repeat === 'monthly') return Number(x.mday) === d.getDate();
+  return Number(x.day) === weekdayIdx(d);
+}
+
 // 그날 활동 시간대에 걸치는 고정 일정(매주 시간표 + 그날의 하루 일정). 자정을 넘는 활동 시간대면 다음 날 새벽 일정도 포함
 function fixedIntervals(date) {
   const [ws, we] = dayWindow(date);
@@ -39,8 +47,7 @@ function fixedIntervals(date) {
   [0, 1].forEach((offset) => {
     const d = addDays(startOfDay(date), offset);
     const base = d.getTime();
-    const dayStr = ymd(d);
-    [...state.schedule.filter((x) => Number(x.day) === weekdayIdx(d)), ...(state.events || []).filter((x) => x.date === dayStr)].forEach((x) => {
+    state.schedule.filter((x) => occursOn(x, d)).forEach((x) => {
       list.push([Math.max(ws, base + toMin(x.start) * MIN), Math.min(we, base + toMin(x.end) * MIN)]);
     });
   });
