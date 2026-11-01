@@ -70,7 +70,7 @@ function taskCard(t) {
       <input type="checkbox" data-action="toggle-done" data-id="${t.id}" ${t.done ? 'checked' : ''} title="완료 상태 변경">
       <div class="task-main" data-action="toggle-open" data-id="${t.id}">
         <div class="task-title">${esc(t.title)}
-          <span class="badge">${esc(t.type)}</span>
+          <span class="badge">${esc(t.type)}</span>${t.repeat ? `<span class="badge" title="완료하면 다음 회차가 자동으로 생깁니다">↻ ${t.repeat === 'weekly' ? '매주' : '매월'}</span>` : ''}
           ${t.done ? '' : `<span class="badge lv-${pr.level}">P${pr.score}</span>`}
         </div>
         <div class="task-meta">
@@ -146,6 +146,7 @@ function openTaskForm(id, date) {
       <label>제목<input name="title" value="${esc(d.title)}" required maxlength="80"></label>
       <div class="row">
         <label>마감 일시<input type="datetime-local" name="due" value="${d.due}" required></label>
+        <label>반복<select name="repeat">${[['', '없음'], ['weekly', '매주'], ['monthly', '매월']].map(([v, l]) => `<option value="${v}" ${(d.repeat || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         <label>중요도 (1~5)${levels('importance', d.importance)}</label>
         <label>난이도 (1~5)${levels('difficulty', d.difficulty)}</label>
       </div>
@@ -211,7 +212,7 @@ function saveTaskForm(form) {
   if (Number.isNaN(new Date(f.due).getTime())) return toast('마감 일시를 확인하세요');
 
   const data = {
-    subject: f.subject.trim(), title: f.title.trim(), type: f.type, due: f.due, estHours: est, estAuto: f.estAuto === 'on',
+    subject: f.subject.trim(), title: f.title.trim(), type: f.type, due: f.due, estHours: est, estAuto: f.estAuto === 'on', repeat: f.repeat || '',
     importance: Number(f.importance), difficulty: Number(f.difficulty), desc: f.desc || '', memo: f.memo || '',
   };
   if (!state.subjects.includes(data.subject)) state.subjects.push(data.subject);
@@ -238,13 +239,41 @@ function deleteTask(id) {
   });
 }
 
+// 반복 과제: 완료하면 다음 회차(마감 +1주/+1달, 하위 작업 초기화)를 한 번만 만든다. 되돌리면 새 회차도 지운다
+function nextDue(due, repeat) {
+  const d = new Date(due);
+  if (repeat === 'monthly') d.setMonth(d.getMonth() + 1); else d.setDate(d.getDate() + 7);
+  return `${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function spawnNext(t) {
+  if (!t.repeat || (t.nextId && getTask(t.nextId))) return null;
+  const n = { ...t, id: uid(), due: nextDue(t.due, t.repeat), done: false, doneAt: null, createdAt: Date.now(),
+    subtasks: t.subtasks.map((s) => ({ id: uid(), text: s.text, done: false })), logs: [], nextId: null, sample: false };
+  state.tasks.push(n);
+  t.nextId = n.id;
+  return n;
+}
+
+function finishTask(t, revert) {
+  t.done = true; t.doneAt = Date.now();
+  stopTimerOf(t.id);
+  const n = spawnNext(t);
+  save(); render();
+  const msg = n ? `'${t.title}' 완료 · 다음 회차 ${fmtDue(n.due)} 추가` : `'${t.title}' 완료`;
+  toast(msg, () => {
+    t.done = false; t.doneAt = null;
+    if (n) { state.tasks = state.tasks.filter((x) => x !== n); t.nextId = null; }
+    if (revert) revert();
+    save(); render();
+  });
+}
+
 function toggleDone(id) {
   const t = getTask(id);
-  t.done = !t.done;
-  t.doneAt = t.done ? Date.now() : null;
-  if (t.done) stopTimerOf(id);
+  if (!t.done) return finishTask(t);
+  t.done = false; t.doneAt = null;
   save(); render();
-  if (t.done) toast(`'${t.title}' 완료`, () => { t.done = false; t.doneAt = null; save(); render(); });
 }
 
 function toggleSub(id, sid) {
@@ -252,11 +281,9 @@ function toggleSub(id, sid) {
   const s = t.subtasks.find((x) => x.id === sid);
   s.done = !s.done;
   const allDone = t.subtasks.every((x) => x.done);
-  const finished = allDone && !t.done;
-  if (finished) { t.done = true; t.doneAt = Date.now(); stopTimerOf(id); }
-  else if (!allDone && t.done) { t.done = false; t.doneAt = null; }
+  if (allDone && !t.done) return finishTask(t, () => { s.done = false; });
+  if (!allDone && t.done) { t.done = false; t.doneAt = null; }
   save(); render();
-  if (finished) toast('모든 단계 완료! 과제를 완료 처리했습니다 🎉', () => { s.done = false; t.done = false; t.doneAt = null; save(); render(); });
 }
 
 function addSub(id, text) {

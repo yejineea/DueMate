@@ -516,6 +516,24 @@ describe('추천 이유 태그', () => {
   });
 });
 
+describe('반복 과제', () => {
+  test('매주 반복 과제를 완료하면 마감 +7일, 하위 작업이 초기화된 다음 회차가 생긴다', () => {
+    fresh();
+    const t = task({ title: '주간 퀴즈', repeat: 'weekly', due: '2026-11-02T10:00', subtasks: [{ id: 1, text: '복습', done: true }] });
+    state.tasks = [t];
+    const n = spawnNext(t);
+    eq([n.due, n.done, n.subtasks[0].done, n.repeat], ['2026-11-09T10:00', false, false, 'weekly']);
+    eq(spawnNext(t), null, '같은 회차는 한 번만');
+  });
+  test('매월 반복은 다음 달 같은 날', () => {
+    eq(nextDue('2026-11-25T23:59', 'monthly'), '2026-12-25T23:59');
+  });
+  test('반복 아닌 과제는 다음 회차가 없다', () => {
+    fresh(); const t = task({}); state.tasks = [t];
+    eq(spawnNext(t), null);
+  });
+});
+
 describe('성적 계산', () => {
   test('입력된 항목만으로 현재 성적을 환산한다', () => {
     const r = calcGrade([{ id: 1, name: '중간', weight: 30, max: 100, score: 80 }, { id: 2, name: '기말', weight: 70, max: 100, score: null }]);
@@ -883,6 +901,16 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     ok(!$('.onboard') && state.onboardDone, '닫힘');
     show('pomodoro');
     ok(!$('.onboard'), '샘플(모두 완료)에서는 안 보임');
+  });
+  test('반복 과제를 완료 처리하면 다음 회차가 생기고, 되돌리면 함께 지워진다', () => {
+    show('todo');
+    const t = state.tasks.find((x) => !x.done);
+    t.repeat = 'weekly'; render();
+    const before = state.tasks.length;
+    toggleDone(t.id);
+    eq(state.tasks.length, before + 1);
+    click('#toast [data-action="toast-undo"]');
+    ok(!t.done && state.tasks.length === before, '되돌림');
   });
   test('추천 이유는 문장이 아니라 태그로 보인다', () => {
     show('pomodoro');
