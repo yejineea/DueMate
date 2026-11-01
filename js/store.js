@@ -33,6 +33,7 @@ function normalize(data) {
     s.timer = null;
   }
   rollSample(s);
+  refreshAutoEstimates(s);
   return s;
 }
 
@@ -65,9 +66,10 @@ function load() {
 // ?demo: 샘플 데이터를 메모리에만 올려 체험 (사용자 데이터는 읽거나 덮어쓰지 않음)
 const params = new URLSearchParams(location.search);
 const DEMO = params.has('demo');
-let state = DEMO ? sampleState() : load();
+let state = null; // 이 파일 맨 아래에서 초기화 (load·sampleState가 아래쪽 함수들을 쓰기 때문)
 
 function save() {
+  refreshAutoEstimates();
   if (DEMO) return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -128,14 +130,14 @@ function sampleState() {
     { title: '영어 단어 퀴즈 준비', subject: '영어회화', type: '시험 공부', due: due(-1, 10, 0), estHours: 1, importance: 2, difficulty: 1,
       done: true, doneAt: doneAt(2), logs: pomos([[2, 2]]) },
     { title: '자료구조 실습 3: 스택', subject: '자료구조', type: '코딩', due: due(-2), estHours: 3, importance: 3, difficulty: 3,
-      done: true, doneAt: doneAt(3), logs: pomos([[3, 3], [4, 2]]) },
+      done: true, doneAt: doneAt(3), logs: pomos([[3, 4], [4, 3], [5, 3]]) },
     { title: '통계학 과제 3장', subject: '통계학', type: '보고서', due: due(-4), estHours: 2, importance: 3, difficulty: 2,
-      done: true, doneAt: doneAt(5), logs: pomos([[5, 2], [6, 2]]) },
+      done: true, doneAt: doneAt(5), logs: pomos([[5, 2], [6, 3]]) },
     { title: '웹 과제 2: 폼 검증', subject: '웹프로그래밍', type: '코딩', due: due(-6), estHours: 3, importance: 3, difficulty: 3,
-      done: true, doneAt: doneAt(6, 23), logs: pomos([[7, 4], [9, 3]]) },
+      done: true, doneAt: doneAt(6, 23), logs: pomos([[7, 4], [8, 3], [9, 3]]) },
     { title: '경영학원론 1주차 리포트', subject: '경영학원론', type: '보고서', due: due(-10), estHours: 2, importance: 3, difficulty: 2,
       done: true, doneAt: doneAt(9), logs: pomos([[10, 3], [12, 2]]) },
-  ].map((t) => ({ id: uid(), desc: '', memo: '', done: false, doneAt: null, createdAt: Date.now(), subtasks: [], logs: [], sample: true, ...t }));
+  ].map((t) => ({ id: uid(), desc: '', memo: '', done: false, doneAt: null, createdAt: Date.now(), subtasks: [], logs: [], sample: true, estAuto: !t.done, ...t }));
   s.sampleBase = ymd(new Date());
   s.grades = {
     자료구조: [
@@ -159,5 +161,9 @@ function sampleState() {
     fixed(3, '10:30', '12:00', '웹프로그래밍 수업'), fixed(3, '13:00', '15:00', '경영학원론 수업'),
     fixed(4, '10:30', '12:00', '통계학 수업'), fixed(4, '18:00', '22:00', '카페 아르바이트'), fixed(5, '12:00', '18:00', '카페 아르바이트'),
   ];
+  refreshAutoEstimates(s);
   return s;
 }
+
+// 초기 상태: 위의 함수·상수가 모두 정의된 뒤에 만든다
+state = DEMO ? sampleState() : load();

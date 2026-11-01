@@ -174,3 +174,11 @@ input, select, textarea { font: inherit; color: var(--text); background: var(--b
 .pomo-buttons { display: flex; gap: 6px; }
 .pomo-chip { border: 1px solid var(--line); background: var(--card); color: var(--tomato); border-radius: 16px; padding: 5px 12px; font-size: 13px; font-weight: 700; cursor: pointer; font-variant-numeric: tabular-nums; }
 .pomo-chip.phase-short, .pomo-chip.phase-long { color: var(--green); }
+
+.est-box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.est-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.est-row input[type=number] { width: 90px; }
+.more summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+.more[open] { display: flex; flex-direction: column; gap: 10px; }
+.cal-box { margin: 4px 0 12px; }
+.form label.check { flex-direction: row; flex: 0 0 auto; align-items: center; }

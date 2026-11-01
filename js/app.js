@@ -78,8 +78,12 @@ document.addEventListener('submit', (e) => {
   forms[kind](e.target);
 });
 
+// 과제 입력 화면의 자동 예상 시간 갱신
+document.addEventListener('input', (e) => { if (e.target.form && e.target.form.dataset.form === 'task') onTaskFormInput(e.target); });
+
 document.addEventListener('change', (e) => {
   const el = e.target;
+  if (el.form && el.form.dataset.form === 'task') return onTaskFormInput(el);
   if (el.dataset.filter) return onFilterChange(el);
   if (el.dataset.grade) return onGradeChange(el);
   if (el.dataset.setting) return onSettingChange(el);
@@ -104,3 +108,5 @@ if (DEMO && params.has('pomo') && recommend().length) {
 if (DEMO) $('.topbar h1').insertAdjacentHTML('beforeend', ' <span class="badge" title="샘플 데이터로 보여주며 변경 사항은 저장되지 않습니다">데모 · 저장 안 됨</span>');
 applyTheme();
 render();
+// 데모 + &form: 과제 추가 화면을 연 상태 (자동 예상 시간 확인·스크린샷용)
+if (DEMO && params.has('form')) openTaskForm(null);

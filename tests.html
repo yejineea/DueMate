@@ -29,7 +29,25 @@
   </div>
 
   <script src="js/utils.js"></script>
+  <script src="js/estimate.js"></script>
+  <!-- 저장된 데이터가 있는 브라우저를 흉내 낸다: store.js가 로드되는 동안만 읽기를 가짜로 바꾼다 (실제 저장소는 건드리지 않음) -->
+  <script>
+    window.__realGetItem = Storage.prototype.getItem;
+    Storage.prototype.getItem = function (key) {
+      if (key !== 'duemate-v1') return window.__realGetItem.call(this, key);
+      return JSON.stringify({
+        tasks: [
+          { id: 'saved1', title: '저장된 완료 과제', subject: '과목', type: '코딩', due: '2026-10-20T23:59', estHours: 2, importance: 3, difficulty: 3,
+            subtasks: [], logs: [{ date: '2026-10-19', ms: 10800000, pomo: 1 }], done: true, doneAt: 1760000000000 },
+          { id: 'saved2', title: '저장된 자동 추정 과제', subject: '과목', type: '코딩', due: '2099-01-01T23:59', estHours: 5, importance: 3, difficulty: 3,
+            subtasks: [], logs: [], done: false, doneAt: null, estAuto: true },
+        ],
+        subjects: ['과목'], schedule: [], grades: {}, timer: null, settings: {},
+      });
+    };
+  </script>
   <script src="js/store.js"></script>
+  <script>Storage.prototype.getItem = window.__realGetItem; window.__loadedState = state;</script>
   <script>save = function () {}; // 테스트는 저장소를 건드리지 않는다</script>
   <script src="js/availability.js"></script>
   <script src="js/priority.js"></script>

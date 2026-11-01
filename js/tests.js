@@ -87,6 +87,48 @@ describe('남은 작업량', () => {
   });
 });
 
+describe('예상 소요 시간 자동 추정', () => {
+  const doneTask = (type, est, actualH) => task({ type, estHours: est, done: true, doneAt: Date.now(), logs: [{ date: '2026-11-01', ms: actualH * HOUR }] });
+  test('기록이 없으면 유형별 기본 시간 × 난이도 계수 (보고서 3h, 시험 난이도4 = 8×1.3 ≈ 10.5h)', () => {
+    fresh();
+    eq(estimateFor({ type: '보고서', difficulty: 3 }).hours, 3);
+    eq(estimateFor({ type: '시험', difficulty: 4 }).hours, 10.5);
+    eq(estimateFor({ type: '코딩', difficulty: 1 }).hours, 3);
+  });
+  test('하위 작업이 보통보다 많으면 늘린다 (보고서 하위 작업 10개 → ×1.5)', () => {
+    fresh();
+    eq(estimateFor({ type: '보고서', difficulty: 3, subCount: 10 }).hours, 4.5);
+    eq(estimateFor({ type: '보고서', difficulty: 3, subCount: 5 }).hours, 3);
+  });
+  test('완료 기록으로 유형별 보정: 코딩을 예상의 1.5배 걸린 기록 2건 → ×1.25 (기록이 쌓일수록 1.5에 가까워짐)', () => {
+    fresh();
+    state.tasks = [doneTask('코딩', 3, 4.5), doneTask('코딩', 4, 6)];
+    const cal = calibration();
+    near(cal.byType['코딩'].ratio, 1.25); eq(cal.byType['코딩'].n, 2);
+    eq(estimateFor({ type: '코딩', difficulty: 3 }).hours, 6.5);
+    state.tasks.push(...[1, 2, 3, 4, 5, 6].map(() => doneTask('코딩', 2, 3)));
+    near(calibration().byType['코딩'].ratio, 1.4);
+  });
+  test('기록 1건에 휘둘리지 않는다 (예상의 3배 걸린 1건 → ×1.67, 그대로 3배가 아님)', () => {
+    fresh();
+    state.tasks = [doneTask('발표', 2, 6)];
+    near(calibration().byType['발표'].ratio, 1.667, '', 0.01);
+  });
+  test('다른 유형은 전체 보정을 따른다', () => {
+    fresh();
+    state.tasks = [doneTask('코딩', 3, 4.5), doneTask('코딩', 4, 6)];
+    near(calibration().byType['보고서'].ratio, 1.25);
+  });
+  test('과제를 완료하면 진행 중인 자동 추정 과제만 다시 계산되고 직접 입력한 과제는 그대로다', () => {
+    fresh();
+    const auto = task({ type: '코딩', difficulty: 3, estAuto: true, estHours: 5 });
+    const manual = task({ type: '코딩', difficulty: 3, estHours: 5 });
+    state.tasks = [auto, manual, doneTask('코딩', 3, 4.5), doneTask('코딩', 4, 6)];
+    refreshAutoEstimates();
+    eq([auto.estHours, manual.estHours], [6.5, 5]);
+  });
+});
+
 describe('우선순위', () => {
   test('마감이 지난 과제는 임박도 최대점과 이유를 받는다', () => {
     fresh();
@@ -271,6 +313,14 @@ describe('성적 계산', () => {
   });
 });
 
+describe('저장된 데이터로 앱 시작', () => {
+  test('저장된 데이터가 있는 브라우저에서도 시작 시 오류 없이 불러오고 자동 예상 시간을 보정한다', () => {
+    const s = window.__loadedState;
+    ok(s && s.tasks.length === 2, '저장된 과제 2개를 불러와야 함');
+    ok(s.tasks[1].estHours > 5, `코딩을 예상보다 오래 한 기록이 반영돼야 함 (실제 ${s.tasks[1].estHours}h)`);
+  });
+});
+
 describe('v1 데이터 호환', () => {
   const v1 = {
     tasks: [{ id: 't1', title: '리포트', subject: '경영', type: '보고서', due: '2026-11-05T23:59', estHours: 3, importance: 3, difficulty: 2,
@@ -427,6 +477,35 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     openTaskForm(t.id);
     click('#modal-box [data-action="delete-task"]');
     ok(!state.tasks.includes(t), '삭제됨');
+  });
+  test('입력 화면: 유형·난이도를 바꾸면 예상 시간이 자동으로 바뀌고 근거가 표시된다', () => {
+    state = defaultState(); render();
+    openTaskForm(null);
+    const f = $('form[data-form="task"]');
+    eq(f.elements.estHours.value, '3');
+    change('form[data-form="task"] [name="type"]', '시험');
+    change('form[data-form="task"] [name="difficulty"]', '4');
+    eq(f.elements.estHours.value, '10.5');
+    ok($('#est-basis').textContent.includes('시험 기본 8h'), $('#est-basis').textContent);
+  });
+  test('입력 화면: 숫자를 직접 고치면 자동 계산이 꺼지고 그 값으로 저장된다', () => {
+    const f = $('form[data-form="task"]');
+    f.elements.title.value = '직접 입력 과제';
+    f.elements.subject.value = '과목';
+    f.elements.estHours.value = '2';
+    f.elements.estHours.dispatchEvent(new Event('input', { bubbles: true }));
+    eq(f.elements.estAuto.checked, false);
+    f.requestSubmit();
+    const t = state.tasks.find((x) => x.title === '직접 입력 과제');
+    eq([t.estHours, t.estAuto], [2, false]);
+  });
+  test('입력 화면: 하위 작업을 적으면 개수가 예상 시간에 반영된다', () => {
+    openTaskForm(null);
+    const f = $('form[data-form="task"]');
+    f.elements.subs.value = Array.from({ length: 10 }, (_, i) => `단계${i}`).join(String.fromCharCode(10));
+    f.elements.subs.dispatchEvent(new Event('input', { bubbles: true }));
+    eq(f.elements.estHours.value, '4.5');
+    closeModal();
   });
   test('휴식 중에는 원형 타이머가 휴식으로 바뀌고 건너뛰기 버튼이 나온다', () => {
     show('today');

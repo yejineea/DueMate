@@ -21,6 +21,17 @@ function futureWeeks() {
   return rows.map(({ start, w }, i) => hRow(i === 0 ? '오늘~' : `${start.getMonth() + 1}/${start.getDate()}~`, w.total, max, `${w.total.toFixed(1)}h / ${w.avail}h`, w.over)).join('');
 }
 
+function calibrationPanel() {
+  const cal = calibration();
+  const rows = Object.entries(cal.byType).filter(([, c]) => c.n);
+  return `<div class="cal-box">
+    <b>내 예상 보정</b> <span class="muted small">완료한 과제의 실제 기록 ÷ 예상 시간. 자동 계산 과제의 예상 시간에 곱해집니다.</span>
+    <div class="chips" style="margin-top:6px">${rows.length ? rows.map(([type, c]) => `<span class="chip-tag">${esc(type)} ×${c.ratio.toFixed(2)} <span class="muted small">(${c.n}건)</span></span>`).join('')
+      : '<span class="muted small">아직 기록이 있는 완료 과제가 없어 기본값(×1.00)을 씁니다.</span>'}
+      <span class="chip-tag">전체 ×${cal.overall.toFixed(2)}</span></div>
+  </div>`;
+}
+
 function renderStats() {
   const all = state.tasks;
   const done = all.filter((t) => t.done);
@@ -59,7 +70,7 @@ function renderStats() {
   const weekFrom = ymd(startOfWeek(new Date()));
   const weekMs = Object.entries(logMap).filter(([d]) => d >= weekFrom).reduce((a, [, ms]) => a + ms, 0);
 
-  const cmp = all.filter((t) => actualMs(t) > 0).map((t) => ({ t, est: t.estHours, act: hours(actualMs(t)) }));
+  const cmp = done.filter((t) => actualMs(t) > 0).map((t) => ({ t, est: t.estHours, act: hours(actualMs(t)) }));
   const totEst = +cmp.reduce((a, c) => a + c.est, 0).toFixed(1);
   const totAct = +cmp.reduce((a, c) => a + c.act, 0).toFixed(1);
 
@@ -84,14 +95,14 @@ function renderStats() {
     <div class="panel"><h3>월간 완료 과제 수</h3>${vChart(monthly)}</div>
   </section>
   <section class="panel">
-    <h3>예상 시간 vs 실제 작업 시간</h3>
-    <p class="muted small">실제 시간이 예상보다 자주 길다면 새 과제의 예상 시간을 넉넉하게 잡으세요. 계획 정확도가 올라갑니다.</p>
+    <h3>완료한 과제의 예상 시간 vs 실제 작업 시간</h3>
+    ${calibrationPanel()}
     ${cmp.length ? `<table class="table">
       <thead><tr><th>과제</th><th>과목</th><th>예상</th><th>실제</th><th>차이</th></tr></thead>
       <tbody>${cmp.map((c) => {
         const diff = +(c.act - c.est).toFixed(1);
         return `<tr><td>${esc(c.t.title)}</td><td>${esc(c.t.subject)}</td><td>${c.est}h</td><td>${c.act}h</td>
           <td class="${diff > 0 ? 'red' : 'green'}">${diff > 0 ? '+' : ''}${diff}h</td></tr>`;
-      }).join('')}</tbody></table>` : '<p class="empty">뽀모도로로 작업 시간을 기록하면 비교표가 표시됩니다.</p>'}
+      }).join('')}</tbody></table>` : '<p class="empty">뽀모도로로 기록한 과제를 완료하면 비교표가 표시됩니다.</p>'}
   </section>`;
 }

@@ -65,7 +65,7 @@ function taskCard(t) {
         </div>
         <div class="task-meta">
           ${esc(t.subject)} · ${fmtDue(t.due)} · <b class="${overdue ? 'red' : urgent ? 'orange' : ''}">${t.done ? '완료' : remainText(t.due)}</b>
-          <span class="meta-sub">· 진행 ${p}% · 기록 ${hours(actualMs(t))}h / 예상 ${t.estHours}h${pomoCount(t) ? ` · 🍅${pomoCount(t)}` : ''}</span>
+          <span class="meta-sub">· 진행 ${p}% · 기록 ${hours(actualMs(t))}h / 예상 ${t.estHours}h${t.estAuto && !t.done ? '(자동)' : ''}${pomoCount(t) ? ` · 🍅${pomoCount(t)}` : ''}</span>
         </div>
         <div class="bar"><span style="width:${p}%"></span></div>
       </div>
@@ -112,8 +112,11 @@ function openTaskForm(id, date) {
   const d = t || {
     subject: state.subjects[0] || '', title: '', type: '보고서',
     due: `${date || ymd(addDays(new Date(), 3))}T23:59`,
-    estHours: 3, importance: 3, difficulty: 3, desc: '', memo: '',
+    importance: 3, difficulty: 3, desc: '', memo: '', estAuto: true, subtasks: [],
   };
+  const auto = !!d.estAuto;
+  const e = estimateFor({ type: d.type, difficulty: d.difficulty, subCount: d.subtasks.length });
+  const est = auto ? e.hours : d.estHours;
   const levels = (name, cur) => `<select name="${name}">${[1, 2, 3, 4, 5].map((n) => `<option ${n === Number(cur) ? 'selected' : ''}>${n}</option>`).join('')}</select>`;
   openModal(`
     <h3>${t ? '과제 수정' : '과제 / 시험 추가'}</h3>
@@ -128,18 +131,26 @@ function openTaskForm(id, date) {
       <label>제목<input name="title" value="${esc(d.title)}" required maxlength="80"></label>
       <div class="row">
         <label>마감 일시<input type="datetime-local" name="due" value="${d.due}" required></label>
-        <label>예상 소요 시간(h)<input type="number" name="estHours" min="0" max="300" step="0.5" value="${d.estHours}" required></label>
-      </div>
-      <div class="row">
         <label>중요도 (1~5)${levels('importance', d.importance)}</label>
         <label>난이도 (1~5)${levels('difficulty', d.difficulty)}</label>
       </div>
-      <label>과제 설명<textarea name="desc" rows="2">${esc(d.desc)}</textarea></label>
-      <label>개인 메모<textarea name="memo" rows="2">${esc(d.memo)}</textarea></label>
-      ${t ? '' : `
-        <div class="toolbar" style="margin:0"><span class="small">하위 작업 (한 줄에 하나)</span>
-          <button type="button" class="btn xs" data-action="fill-template">유형별 템플릿 채우기</button></div>
-        <textarea name="subs" rows="4" placeholder="예) 자료 조사&#10;PPT 제작&#10;발표 연습"></textarea>`}
+      <div class="est-box" data-subs="${d.subtasks.length}">
+        <div class="est-row">
+          <span class="small">예상 소요 시간</span>
+          <input type="number" name="estHours" min="0.5" max="300" step="0.5" value="${est}" required> <span class="small">시간</span>
+          <label class="check"><input type="checkbox" name="estAuto" ${auto ? 'checked' : ''}> 자동 계산</label>
+        </div>
+        <div class="muted small" id="est-basis">${auto ? esc(estimateBasis(e)) : '직접 입력한 값입니다. "자동 계산"을 켜면 유형·난이도·내 기록으로 다시 계산합니다.'}</div>
+      </div>
+      <details class="more">
+        <summary>하위 작업 · 설명 · 메모 (선택)</summary>
+        ${t ? '' : `
+          <div class="toolbar" style="margin:8px 0 0"><span class="small">하위 작업 (한 줄에 하나, 개수가 예상 시간에 반영됩니다)</span>
+            <button type="button" class="btn xs" data-action="fill-template">유형별 템플릿 채우기</button></div>
+          <textarea name="subs" rows="4" placeholder="예) 자료 조사&#10;PPT 제작&#10;발표 연습"></textarea>`}
+        <label>과제 설명<textarea name="desc" rows="2">${esc(d.desc)}</textarea></label>
+        <label>개인 메모<textarea name="memo" rows="2">${esc(d.memo)}</textarea></label>
+      </details>
       <div class="modal-actions">
         ${t ? `<button type="button" class="btn danger" data-action="delete-task" data-id="${t.id}" style="margin-right:auto">삭제</button>` : ''}
         <button type="button" class="btn" data-action="close-modal">취소</button>
@@ -153,6 +164,28 @@ function fillTemplate() {
   const list = TEMPLATES[form.elements.namedItem('type').value];
   if (!list) return toast('이 유형은 템플릿이 없습니다');
   form.elements.namedItem('subs').value = list.join('\n');
+  updateFormEstimate(form);
+}
+
+// 입력 화면: 유형·난이도·하위 작업이 바뀌면 자동 예상 시간을 다시 계산, 숫자를 직접 고치면 자동 계산을 끈다
+function formSubCount(form) {
+  const subs = form.elements.namedItem('subs');
+  return subs ? subs.value.split('\n').filter((x) => x.trim()).length : Number($('.est-box', form).dataset.subs);
+}
+
+function updateFormEstimate(form) {
+  const f = form.elements;
+  const basis = $('#est-basis', form);
+  if (!f.estAuto.checked) { basis.textContent = '직접 입력한 값입니다. "자동 계산"을 켜면 유형·난이도·내 기록으로 다시 계산합니다.'; return; }
+  const e = estimateFor({ type: f.type.value, difficulty: f.difficulty.value, subCount: formSubCount(form) });
+  f.estHours.value = e.hours;
+  basis.textContent = estimateBasis(e);
+}
+
+function onTaskFormInput(el) {
+  const form = el.form;
+  if (el.name === 'estHours') { form.elements.estAuto.checked = false; updateFormEstimate(form); return; }
+  if (['type', 'difficulty', 'subs', 'estAuto'].includes(el.name)) updateFormEstimate(form);
 }
 
 function saveTaskForm(form) {
@@ -163,8 +196,8 @@ function saveTaskForm(form) {
   if (Number.isNaN(new Date(f.due).getTime())) return toast('마감 일시를 확인하세요');
 
   const data = {
-    subject: f.subject.trim(), title: f.title.trim(), type: f.type, due: f.due, estHours: est,
-    importance: Number(f.importance), difficulty: Number(f.difficulty), desc: f.desc, memo: f.memo,
+    subject: f.subject.trim(), title: f.title.trim(), type: f.type, due: f.due, estHours: est, estAuto: f.estAuto === 'on',
+    importance: Number(f.importance), difficulty: Number(f.difficulty), desc: f.desc || '', memo: f.memo || '',
   };
   if (!state.subjects.includes(data.subject)) state.subjects.push(data.subject);
 
