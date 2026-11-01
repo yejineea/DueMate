@@ -4,6 +4,7 @@
   --red: #e5484d; --red-dark: #b42318; --red-weak: #fdecec;
   --green: #8bc34a; --green-dark: #558b2f; --green-weak: #eff7e4;
   --chart-green: #b3c99a; --chart-red: #e6a5a7; /* 그래프용: 채도를 낮춘 연두·빨강 */
+  --medal: #c27c2c; --medal-light: #e2a95a; --medal-dark: #8a5418; /* 배지 메달용 주황~갈색 (2색 규칙의 예외) */
   --primary: var(--green-dark); --primary-weak: var(--green-weak); --tomato: var(--red); --orange: var(--red);
   --radius: 12px;
 }
@@ -12,6 +13,7 @@
   --red: #ff6b6b; --red-dark: #ff9b9b; --red-weak: #3b2122;
   --green: #9ccc65; --green-dark: #aed581; --green-weak: #263220;
   --chart-green: #6f8a5a; --chart-red: #a5585a;
+  --medal: #d89a4a; --medal-light: #f0c27a; --medal-dark: #a8692a;
 }
 * { box-sizing: border-box; }
 body { margin: 0; font-family: -apple-system, "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif; background: var(--bg); color: var(--text); padding-bottom: 32px; }
@@ -277,9 +279,9 @@ main[data-current="pomodoro"] { max-width: 1320px; }
   clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); }
 .badge-card .bi::before { left: 15px; transform: rotate(12deg); }
 .badge-card .bi::after { right: 15px; transform: rotate(-12deg); }
-.badge-card.on .bi { border-color: var(--green-dark); box-shadow: inset 0 0 0 4px var(--card), inset 0 0 0 5.5px var(--green); }
-.badge-card.on .bi::before { background: var(--green-dark); }
-.badge-card.on .bi::after { background: var(--green); }
+.badge-card.on .bi { border-color: var(--medal); background: radial-gradient(circle, var(--card) 62%, #fff5e8 100%); box-shadow: inset 0 0 0 4px var(--card), inset 0 0 0 5.5px var(--medal-light), 0 2px 6px rgba(138, 84, 24, .25); }
+.badge-card.on .bi::before { background: var(--medal-dark); }
+.badge-card.on .bi::after { background: var(--medal); }
 
 /* 단계 진행 */
 .step { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
