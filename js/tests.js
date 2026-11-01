@@ -136,7 +136,7 @@ describe('오늘 계획', () => {
   });
   test('오늘 마감 과제에 필요한 몫을 먼저 배정하고, 남는 시간은 다음 순위에 준다', () => {
     const r = setup(1);
-    eq(r.items.map((x) => [x.t.title, x.pomos]), [['A', 3], ['B', 5]]);
+    eq(r.items.map((x) => [x.t.title, x.pomos]).sort(), [['A', 3], ['B', 5]]);
     eq(r.short, []);
   });
   test('빈 시간 구간에 시간 슬롯으로 배치하고 4회마다 긴 휴식을 넣는다', () => {
@@ -155,6 +155,17 @@ describe('오늘 계획', () => {
     const r = planToday(at(0, '18:00'));
     eq(r.total, 2); eq(r.used, 0); eq(r.slots, []);
     eq(r.short.map((x) => x.t.title), ['A']);
+  });
+  test('오늘 밤 마감 과제는 점수가 더 높은 내일 마감 과제보다 먼저 시간을 받는다', () => {
+    fresh({ maxStudy: 12 }, { schedule: [fixed(0, '09:00', '13:00'), fixed(1, '09:00', '12:00')] });
+    state.tasks = [
+      task({ title: '오늘', estHours: 2, importance: 2, difficulty: 2, due: `${ymd(MON)}T23:00` }),
+      task({ title: '내일', estHours: 5, importance: 5, difficulty: 5, due: `${ymd(addDays(MON, 1))}T13:00` }),
+    ];
+    const r = planToday(at(0, '20:00'));
+    ok(priorityOf(state.tasks[1], at(0, '20:00')).score > priorityOf(state.tasks[0], at(0, '20:00')).score, '내일 과제 점수가 더 높아야 함');
+    eq(r.slots[0].t.title, '오늘');
+    eq(r.short, []);
   });
   test('뽀모도로가 진행 중이면 그 집중과 휴식이 끝난 뒤부터 계획한다', () => {
     fresh({ maxStudy: 12 }, { schedule: [fixed(0, '09:00', '13:00')] });
@@ -324,31 +335,43 @@ describe('화면 조작 (실제 클릭·입력)', () => {
   const change = (sel, value) => { const el = $(sel); el.value = value; el.dispatchEvent(new Event('change', { bubbles: true })); };
   function show(tab) { state = sampleState(); currentTab = tab; render(); }
 
-  test('오늘 화면의 집중 시작 버튼을 누르면 지금 할 일 과제의 뽀모도로가 시작된다', () => {
+  test('지금 할 일 옆 원형 타이머의 시작 버튼을 누르면 그 과제의 뽀모도로가 시작된다', () => {
     show('today');
-    const id = $('.hero [data-action="pomo-start"]').dataset.id;
-    click('.hero [data-action="pomo-start"]');
+    const id = $('.hero .pomo [data-action="pomo-start"]').dataset.id;
+    click('.hero .pomo [data-action="pomo-start"]');
     eq(state.timer.taskId, id);
-    ok(!$('#timerbar').classList.contains('hidden'), '타이머 바가 보여야 함');
+    ok($('.hero .pomo.phase-focus #timer-ring'), '원형 타이머가 집중 상태');
     ok(document.title.includes('집중'), `탭 제목: ${document.title}`);
-    ok($('.hero').textContent.includes('집중 중'), '시작 후 버튼 문구');
   });
-  test('타이머 바에서 일시정지 → 재개 → 종료할 수 있다', () => {
-    click('#timerbar [data-action="pomo-pause"]');
+  test('원형 타이머 아래 버튼으로 일시정지 → 재개 → 중지할 수 있다', () => {
+    click('.hero .pomo [data-action="pomo-pause"]');
     eq(state.timer.endsAt, null);
     ok(document.title.startsWith('⏸'), document.title);
-    click('#timerbar [data-action="pomo-resume"]');
+    click('.hero .pomo [data-action="pomo-resume"]');
     ok(state.timer.endsAt > Date.now(), '재개 후 진행');
-    click('#timerbar [data-action="pomo-stop"]');
+    click('.hero .pomo [data-action="pomo-stop"]');
     eq(state.timer, null);
-    ok($('#timerbar').classList.contains('hidden'), '종료 후 숨김');
+    ok($('.hero .pomo.phase-idle [data-action="pomo-start"]'), '중지 후 시작 버튼으로 돌아옴');
   });
-  test('다른 과제에서 시작하면 진행 중인 뽀모도로를 끝내고 바꾼다', () => {
+  test('과제 탭에서 시작하면 오늘 화면으로 이동하고, 집중 중인 과제가 카드에 표시된다', () => {
     show('tasks');
-    const btns = $$('#view [data-action="pomo-start"]');
-    btns[0].click();
-    $$('#view [data-action="pomo-start"]')[1].click();
-    eq(state.timer.taskId, btns[1].dataset.id);
+    const last = $$('#view [data-action="pomo-start"]').pop().dataset.id;
+    startPomodoro(last);
+    eq(currentTab, 'today');
+    eq($('.hero .pomo [data-action="pomo-pause"]') && state.timer.taskId, last);
+    ok($('.hero').textContent.includes('집중 중인 과제'), '카드 제목');
+  });
+  test('다른 탭에서는 상단에 남은 시간 칩만 보이고, 누르면 오늘 화면으로 간다', () => {
+    click('#tabs [data-tab="calendar"]');
+    ok(!$('#pomo-chip').hidden && $('#pomo-chip').textContent.includes('집중'), '칩 표시');
+    click('#pomo-chip');
+    eq(currentTab, 'today');
+    ok($('#pomo-chip').hidden, '오늘 화면에서는 숨김');
+  });
+  test('다른 과제로 시작하면 진행 중인 뽀모도로를 끝내고 바꾼다', () => {
+    const other = state.tasks.find((t) => !t.done && t.id !== state.timer.taskId);
+    startPomodoro(other.id);
+    eq(state.timer.taskId, other.id);
     pomoStop();
   });
   test('과제 추가 모달에서 저장하면 목록과 오늘 계획에 반영된다', () => {
@@ -370,12 +393,13 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     click('#modal-box [data-action="delete-task"]');
     ok(!state.tasks.includes(t), '삭제됨');
   });
-  test('휴식 중에는 오늘 화면 버튼이 집중 중이라고 표시하지 않는다', () => {
+  test('휴식 중에는 원형 타이머가 휴식으로 바뀌고 건너뛰기 버튼이 나온다', () => {
     show('today');
-    click('.hero [data-action="pomo-start"]');
+    click('.hero .pomo [data-action="pomo-start"]');
     pomoAdvance(state.timer.endsAt);
     render();
-    ok($('.hero').textContent.includes('휴식 중'), $('.hero .hero-actions').textContent.trim());
+    ok($('.hero .pomo.phase-short [data-action="pomo-skip"]'), $('.hero .pomo').textContent.replace(/\s+/g, ' '));
+    ok($('.hero .pomo-label').textContent.includes('휴식'), '휴식 표시');
     pomoStop();
   });
   test('탭 버튼과 분석의 통계/성적 전환이 동작한다', () => {

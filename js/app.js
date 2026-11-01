@@ -8,7 +8,7 @@ function render() {
   const fn = window[VIEWS[currentTab]];
   $('#view').innerHTML = typeof fn === 'function' ? fn() : '<section class="panel"><p class="empty">준비 중인 기능입니다.</p></section>';
   $$('#tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === currentTab));
-  renderTimerBar();
+  renderPomoChip();
 }
 
 function applyTheme() { document.documentElement.dataset.theme = state.settings.theme; }
@@ -94,9 +94,10 @@ setInterval(() => {
   if (['today', 'tasks', 'calendar'].includes(currentTab) && $('#modal').classList.contains('hidden') && !typing) render();
 }, 60000);
 
-// 데모 + &pomo: 1순위 과제의 뽀모도로가 진행 중인 화면 (스크린샷·체험용)
+// 데모 + &pomo: 지금 할 일(오늘 계획 첫 슬롯)의 뽀모도로가 진행 중인 화면 (스크린샷·체험용)
 if (DEMO && params.has('pomo') && recommend().length) {
-  pomoBegin(recommend()[0].t.id, Date.now() - 12 * MIN);
+  const first = planToday().slots[0];
+  pomoBegin(first ? first.t.id : recommend()[0].t.id, Date.now() - 12 * MIN);
   state.timer.count = 2;
 }
 

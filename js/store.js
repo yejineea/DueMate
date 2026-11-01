@@ -83,19 +83,41 @@ function sampleState() {
   const subs = (arr, doneN = 0) => arr.map((text, i) => ({ id: uid(), text, done: i < doneN }));
   const pomos = (list) => list.flatMap(([ago, n]) => [...Array(n)].map(() => ({ date: ymd(addDays(new Date(), -ago)), ms: 25 * 6e4, pomo: 1 })));
   const s = defaultState();
-  s.subjects = ['자료구조', '웹프로그래밍', '경영학원론', '영어회화'];
+  // 모든 날짜는 불러오는 날 기준 상대값이라, 언제 불러와도 "이번 주~3주 뒤" 일정으로 보인다
+  const doneAt = (days, h = 21) => new Date(`${ymd(addDays(new Date(), -days))}T${pad(h)}:00`).getTime();
+  s.subjects = ['자료구조', '웹프로그래밍', '경영학원론', '영어회화', '통계학'];
   s.tasks = [
-    { title: '팀 발표 준비', subject: '경영학원론', type: '발표', due: due(1), estHours: 5, importance: 5, difficulty: 4,
-      subtasks: subs(['자료 조사', '자료 정리', 'PPT 제작', '발표 연습', '제출'], 2), logs: pomos([[1, 3], [2, 2]]) },
+    // 진행 중
+    { title: '영어 에세이 초안', subject: '영어회화', type: '보고서', due: due(0, 23, 0), estHours: 2, importance: 3, difficulty: 2,
+      subtasks: subs(['주제 정하기', '개요 작성', '초안 쓰기', '맞춤법 검토']), logs: pomos([[0, 1]]) },
+    { title: '팀 발표 준비', subject: '경영학원론', type: '발표', due: due(1, 13, 0), estHours: 5, importance: 5, difficulty: 4,
+      subtasks: subs(['자료 조사', '자료 정리', 'PPT 제작', '발표 연습', '제출'], 2), logs: pomos([[1, 3], [2, 2], [0, 1]]) },
+    { title: '스피킹 녹음 과제', subject: '영어회화', type: '기타', due: due(2, 12, 0), estHours: 1, importance: 2, difficulty: 1 },
     { title: '연결 리스트 구현', subject: '자료구조', type: '코딩', due: due(3, 18, 0), estHours: 6, importance: 4, difficulty: 4,
-      subtasks: subs(['요구사항 분석', '구현', '테스트', '보고서 작성'], 1), logs: pomos([[0, 2], [3, 2]]) },
-    { title: '반응형 포트폴리오 페이지', subject: '웹프로그래밍', type: '코딩', due: due(3), estHours: 4, importance: 3, difficulty: 3,
-      logs: pomos([[4, 2]]) },
-    { title: '영어 에세이', subject: '영어회화', type: '보고서', due: due(0, 23, 0), estHours: 2, importance: 2, difficulty: 2 },
-    { title: '자료구조 중간고사', subject: '자료구조', type: '시험', due: due(9, 10, 0), estHours: 8, importance: 5, difficulty: 4,
-      subtasks: subs(['범위 정리', '1회독', '문제 풀이', '오답 정리']), logs: pomos([[5, 3], [6, 2]]) },
-    { title: '1주차 리포트', subject: '경영학원론', type: '보고서', due: due(-6), estHours: 2, importance: 3, difficulty: 2,
-      done: true, doneAt: Date.now() - 5 * 864e5, logs: pomos([[7, 4], [8, 2]]) },
+      subtasks: subs(['요구사항 분석', '구현', '테스트', '보고서 작성'], 1), logs: pomos([[3, 2], [4, 2]]) },
+    { title: '회귀분석 문제 풀이 4장', subject: '통계학', type: '보고서', due: due(4), estHours: 3, importance: 3, difficulty: 3,
+      logs: pomos([[2, 1]]) },
+    { title: '반응형 포트폴리오 페이지', subject: '웹프로그래밍', type: '코딩', due: due(5), estHours: 4, importance: 3, difficulty: 3,
+      subtasks: subs(['레이아웃 설계', '모바일 대응', '배포']), logs: pomos([[5, 2]]) },
+    { title: '마케팅 사례 분석 보고서', subject: '경영학원론', type: '보고서', due: due(7), estHours: 4, importance: 4, difficulty: 3,
+      subtasks: subs(['사례 선정', '자료 조사', '초안 작성', '퇴고', '제출']) },
+    { title: '자료구조 중간고사', subject: '자료구조', type: '시험', due: due(9, 10, 0), estHours: 10, importance: 5, difficulty: 4,
+      subtasks: subs(['범위 정리', '1회독', '문제 풀이', '오답 정리'], 1), logs: pomos([[6, 3], [8, 2]]) },
+    { title: '통계학 중간고사', subject: '통계학', type: '시험', due: due(11, 13, 0), estHours: 8, importance: 5, difficulty: 4,
+      subtasks: subs(['범위 정리', '1회독', '문제 풀이', '오답 정리']) },
+    { title: '웹프로그래밍 중간 프로젝트 기획서', subject: '웹프로그래밍', type: '보고서', due: due(14), estHours: 3, importance: 3, difficulty: 2 },
+    { title: '경영학원론 중간고사', subject: '경영학원론', type: '시험', due: due(16, 10, 0), estHours: 6, importance: 4, difficulty: 3 },
+    // 최근 완료 (통계·학습 기록용)
+    { title: '영어 단어 퀴즈 준비', subject: '영어회화', type: '시험 공부', due: due(-1, 10, 0), estHours: 1, importance: 2, difficulty: 1,
+      done: true, doneAt: doneAt(2), logs: pomos([[2, 2]]) },
+    { title: '자료구조 실습 3: 스택', subject: '자료구조', type: '코딩', due: due(-2), estHours: 3, importance: 3, difficulty: 3,
+      done: true, doneAt: doneAt(3), logs: pomos([[3, 3], [4, 2]]) },
+    { title: '통계학 과제 3장', subject: '통계학', type: '보고서', due: due(-4), estHours: 2, importance: 3, difficulty: 2,
+      done: true, doneAt: doneAt(5), logs: pomos([[5, 2], [6, 2]]) },
+    { title: '웹 과제 2: 폼 검증', subject: '웹프로그래밍', type: '코딩', due: due(-6), estHours: 3, importance: 3, difficulty: 3,
+      done: true, doneAt: doneAt(6, 23), logs: pomos([[7, 4], [9, 3]]) },
+    { title: '경영학원론 1주차 리포트', subject: '경영학원론', type: '보고서', due: due(-10), estHours: 2, importance: 3, difficulty: 2,
+      done: true, doneAt: doneAt(9), logs: pomos([[10, 3], [12, 2]]) },
   ].map((t) => ({ id: uid(), desc: '', memo: '', done: false, doneAt: null, createdAt: Date.now(), subtasks: [], logs: [], ...t }));
   s.grades = {
     자료구조: [
@@ -104,14 +126,20 @@ function sampleState() {
       { id: uid(), name: '과제', weight: 30, max: 100, score: 92 },
       { id: uid(), name: '출석', weight: 10, max: 10, score: 10 },
     ],
+    통계학: [
+      { id: uid(), name: '중간고사', weight: 35, max: 100, score: null },
+      { id: uid(), name: '기말고사', weight: 35, max: 100, score: null },
+      { id: uid(), name: '과제', weight: 20, max: 60, score: 54 },
+      { id: uid(), name: '퀴즈', weight: 10, max: 20, score: 17 },
+    ],
   };
   const fixed = (day, start, end, label) => ({ id: uid(), day, start, end, label });
   s.schedule = [
     fixed(0, '09:00', '12:00', '자료구조 수업'), fixed(0, '13:00', '15:00', '경영학원론 수업'),
-    fixed(1, '10:30', '12:00', '웹프로그래밍 수업'), fixed(1, '15:00', '16:30', '영어회화 수업'),
+    fixed(1, '10:30', '12:00', '웹프로그래밍 수업'), fixed(1, '13:30', '15:00', '통계학 수업'), fixed(1, '15:00', '16:30', '영어회화 수업'),
     fixed(2, '09:00', '12:00', '자료구조 실습'), fixed(2, '18:00', '22:00', '카페 아르바이트'),
     fixed(3, '10:30', '12:00', '웹프로그래밍 수업'), fixed(3, '13:00', '15:00', '경영학원론 수업'),
-    fixed(4, '18:00', '22:00', '카페 아르바이트'), fixed(5, '12:00', '18:00', '카페 아르바이트'),
+    fixed(4, '10:30', '12:00', '통계학 수업'), fixed(4, '18:00', '22:00', '카페 아르바이트'), fixed(5, '12:00', '18:00', '카페 아르바이트'),
   ];
   return s;
 }

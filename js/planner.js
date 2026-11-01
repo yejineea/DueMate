@@ -1,5 +1,5 @@
 // 오늘 계획: 남은 공부 가능 시간을 뽀모도로 단위로 나눠 우선순위 순서대로 배정하고, 빈 시간 구간에 시간 슬롯으로 배치한다.
-// 1차) 마감까지 고르게 나눠 했을 때 "오늘 해야 하는 몫"을 우선순위 순서로 배정
+// 1차) 마감까지 고르게 나눠 했을 때 "오늘 해야 하는 몫"을 배정 (오늘이 마지막 기회인 과제 먼저, 그다음 우선순위 순)
 // 2차) 남는 뽀모도로는 우선순위가 높은 과제부터 남은 작업량만큼 추가 배정
 
 function planToday(now = Date.now(), recs = recommend(now)) {
@@ -22,11 +22,13 @@ function planToday(now = Date.now(), recs = recommend(now)) {
     const lastDay = dueMs > now && untilDue - todayPart < 0.01;
     return { t, p, need, lastDay, required: Math.min(need, Math.ceil(need * share - 1e-9)), pomos: 0 };
   });
-  items.forEach((it) => { const n = Math.min(it.required, left); it.pomos += n; left -= n; });
+  // 오늘이 아니면 할 수 없는 몫(마감 전 남은 날이 없는 과제)을 가장 먼저, 그다음 나머지 과제의 오늘 몫
+  const ordered = [...items.filter((it) => it.lastDay), ...items.filter((it) => !it.lastDay)];
+  ordered.forEach((it) => { const n = Math.min(it.required, left); it.pomos += n; left -= n; });
   items.forEach((it) => { const n = Math.min(it.need - it.pomos, left); it.pomos += n; left -= n; });
 
   // 긴 휴식·수업 사이 짧은 빈틈 때문에 실제로 들어가지 못한 뽀모도로는 빼고 센다
-  const slots = layoutSlots(items.filter((it) => it.pomos > 0), from);
+  const slots = layoutSlots(ordered.filter((it) => it.pomos > 0), from);
   const placed = new Map();
   slots.forEach((s) => placed.set(s.t, (placed.get(s.t) || 0) + s.pomos));
   items.forEach((it) => { it.pomos = placed.get(it.t) || 0; });
