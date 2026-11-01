@@ -46,6 +46,7 @@ description: DueMate 저장소에서 docs/TODO.md의 항목을 하나씩 구현�
 - 코드와 그에 해당하는 TODO 체크는 **같은 커밋**에 넣는다.
 - 커밋 2개 이내마다 `git push origin main`으로 올린다. 마지막에 몰아서 push하지 않는다.
 - push 후 GitHub Pages 배포 워크플로가 돌기 때문에, push 전 3단계 검증을 반드시 통과시킨다.
+- 화면·코드를 바꾼 push 전에는 `index.html`의 `?v=` 버전을 올린다. 브라우저가 css/js를 최대 10분 캐시하므로, 버전을 안 바꾸면 사용자는 새로고침해도 옛 화면을 본다.
 
 ## 예시
 
