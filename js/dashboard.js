@@ -111,27 +111,53 @@ document.addEventListener('pointerup', () => {
 });
 document.addEventListener('pointercancel', () => { if (drag) { drag = null; goSlide(curSlide); } });
 
-function planPanel(tp) {
+function planPanel(tp, recs) {
   const pm = state.settings.pomodoro;
   const head = `
     <div class="toolbar">
       <h3 style="margin:0">오늘 계획</h3>
-      <span class="muted small">남은 공부 가능 ${(tp.capMin / 60).toFixed(1)}h (${hm(todayEnd())}까지 · 자동 계산) · 집중 ${tp.used}회 배정 · 오늘 완료 ${todayPomos()}회</span>
+      <span class="plan-mode ${tp.edited ? 'edited' : ''}">${tp.edited ? '직접 수정됨' : '자동'}</span>
       <span class="spacer"></span>
+      ${tp.edited ? '<button class="btn xs" data-action="plan-reset">자동으로 되돌리기</button>' : ''}
       <button class="btn xs" data-tab="settings">계산 기준</button>
-    </div>`;
+    </div>
+    <div class="muted small" style="margin:-4px 0 8px">남은 공부 가능 ${(tp.capMin / 60).toFixed(1)}h (${hm(todayEnd())}까지) · 🍅 ${tp.used}/${tp.total}개 배정 · 오늘 모은 🍅 ${todayPomos()}개</div>`;
+  const ctl = (id) => `
+    <span class="plan-ctl">
+      <button class="icon-btn" data-action="plan-dec" data-id="${id}" title="🍅 하나 빼기">−</button>
+      <span class="slot-pomo">🍅×${planCount(tp, id)}</span>
+      <button class="icon-btn" data-action="plan-inc" data-id="${id}" title="🍅 하나 더">+</button>
+    </span>
+    <span class="plan-ctl">
+      <button class="icon-btn" data-action="plan-up" data-id="${id}" title="앞으로">▲</button>
+      <button class="icon-btn" data-action="plan-down" data-id="${id}" title="뒤로">▼</button>
+      <button class="icon-btn" data-action="plan-exclude" data-id="${id}" title="오늘 제외">✕</button>
+    </span>`;
+  const seen = new Set();
   const body = tp.slots.length
-    ? `<div class="slots">${tp.slots.map((s) => `
-      <div class="slot ${state.timer && state.timer.taskId === s.t.id ? 'active' : ''}">
+    ? `<div class="slots">${tp.slots.map((s) => {
+      const first = !seen.has(s.t.id); seen.add(s.t.id);
+      return `
+      <div class="slot plan-slot ${state.timer && state.timer.taskId === s.t.id ? 'active' : ''}">
         <span class="slot-time">${hm(s.start)}–${hm(s.end)}</span>
-        <span class="slot-title">${esc(s.t.title)} <span class="muted small">${esc(s.t.subject)}</span></span>
-        <span class="slot-pomo" title="${pm.focus}분 집중 ${s.pomos}회">🍅×${s.pomos}</span>
-        <button class="btn xs" data-action="pick-task" data-id="${s.t.id}">보기</button>
-      </div>`).join('')}</div>`
+        <span class="slot-title" data-action="pick-task" data-id="${s.t.id}" title="이 과제 보기">${esc(s.t.title)} <span class="muted small">${esc(s.t.subject)}${first ? '' : ' (이어서)'}</span></span>
+        ${first ? ctl(s.t.id) : `<span class="slot-pomo muted">🍅×${s.pomos}</span><span></span>`}
+      </div>`;
+    }).join('')}</div>`
     : `<p class="muted small">${tp.capMin < pm.focus ? '오늘 남은 공부 가능 시간이 없습니다. 내일 계획은 자정 이후 다시 계산됩니다.' : '배정할 작업이 없습니다.'}</p>`;
-  const short = tp.short.map((x) => `<div class="alert danger">'${esc(x.t.title)}' 오늘 마감까지 집중 ${x.missing}회(약 ${((x.missing * pm.focus) / 60).toFixed(1)}h) 부족</div>`).join('');
-  return `<section class="panel">${head}${body}${short ? `<div class="alerts" style="margin-top:10px">${short}</div>` : ''}
-    <p class="muted small" style="margin-bottom:0">🍅 1개 = ${pm.focus}분 집중 + ${pm.short}분 휴식 · 오늘 몫(마감까지 고르게 나눈 양)을 먼저, 남는 시간은 우선순위 순으로 배정</p></section>`;
+  const inPlan = new Set(tp.items.map((it) => it.t.id));
+  const addable = recs.filter((r) => !inPlan.has(r.t.id));
+  const extra = `
+    <div class="plan-extra">
+      ${tp.excluded.length ? `<span class="small muted">오늘 제외:</span> ${tp.excluded.map((t) => `<span class="chip-tag">${esc(t.title)} <button class="btn xs" data-action="plan-restore" data-id="${t.id}" title="다시 자동 배정">되돌리기</button></span>`).join('')}` : ''}
+      ${addable.length ? `<select data-plan-add class="plan-add"><option value="">+ 오늘 계획에 과제 추가</option>${addable.map((r) => `<option value="${r.t.id}">${esc(r.t.title)} (${esc(r.t.subject)})</option>`).join('')}</select>` : ''}
+    </div>`;
+  const warn = [
+    ...tp.short.map((x) => `<div class="alert danger"><b>부족</b> · ${esc(x.t.title)} · 오늘 마감까지 🍅 ${x.missing}개 (${((x.missing * pm.focus) / 60).toFixed(1)}h)</div>`),
+    tp.overflow > 0 ? `<div class="alert warn"><b>시간 초과</b> · 🍅 ${tp.overflow}개는 오늘 남은 빈 시간에 들어가지 않아 빠졌습니다</div>` : '',
+  ].join('');
+  return `<section class="panel">${head}${body}${extra}${warn ? `<div class="alerts" style="margin-top:10px">${warn}</div>` : ''}
+    <p class="muted small" style="margin-bottom:0">🍅 1개 = ${pm.focus}분 집중 + ${pm.short}분 휴식 · 자동: 오늘 몫(마감까지 고르게 나눈 양) 먼저, 남는 시간은 우선순위 순 · 개수를 바꾼 과제는 고정, 나머지는 남는 시간으로 다시 배정 · 수정은 오늘만 유지</p></section>`;
 }
 
 // 뽀모도로 탭: 왼쪽 과제 슬라이드(가운데 타이머) | 오른쪽 오늘 계획 → 핵심 경고 → 7일 내 마감 → 뽀모도로 설정
@@ -166,7 +192,7 @@ function renderFocus() {
   <div class="focus-layout">
     <div class="focus-main">${carousel(slides, tp.slots.length ? tp.slots[0].t : null)}</div>
     <div class="focus-side">
-      ${planPanel(tp)}
+      ${planPanel(tp, recs)}
       ${shown.length ? `<section class="alerts">${shown.map((a) => `<div class="alert ${a.type}">${a.msg}</div>`).join('')}
         ${alerts.length > shown.length ? `<div class="muted small">외 경고 ${alerts.length - shown.length}건 · 리포트 탭에서 주간 작업량 확인</div>` : ''}</section>` : ''}
       <section class="panel"><h3>7일 내 마감</h3>${miniList(upcoming)}</section>

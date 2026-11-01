@@ -1,4 +1,4 @@
-const VIEWS = { pomodoro: 'renderFocus', todo: 'renderTodo', report: 'renderAnalytics', settings: 'renderSettings' };
+const VIEWS = { pomodoro: 'renderFocus', todo: 'renderTodo', achieve: 'renderAchievements', report: 'renderAnalytics', settings: 'renderSettings' };
 const TAB_ALIAS = { today: 'pomodoro', tasks: 'todo', calendar: 'todo', analytics: 'report' };
 let currentTab = TAB_ALIAS[params.get('tab')] || (VIEWS[params.get('tab')] ? params.get('tab') : 'pomodoro');
 
@@ -43,6 +43,13 @@ const actions = {
   'analytics-view': (el) => { analyticsView = el.dataset.view; render(); },
   'todo-view': (el) => { todoView = el.dataset.view; render(); },
   'pick-task': (el) => pickTask(el.dataset.id),
+  'plan-inc': (el) => planAdjust(el.dataset.id, 1),
+  'plan-dec': (el) => planAdjust(el.dataset.id, -1),
+  'plan-up': (el) => planMove(el.dataset.id, -1),
+  'plan-down': (el) => planMove(el.dataset.id, 1),
+  'plan-exclude': (el) => planExclude(el.dataset.id),
+  'plan-restore': (el) => planRestore(el.dataset.id),
+  'plan-reset': () => planReset(),
   'del-subject': (el) => delSubject(el.dataset.name),
   'export-json': () => exportJSON(),
   'export-csv': () => exportCSV(),
@@ -87,6 +94,7 @@ document.addEventListener('input', (e) => { if (e.target.form && e.target.form.d
 document.addEventListener('change', (e) => {
   const el = e.target;
   if (el.form && el.form.dataset.form === 'task') return onTaskFormInput(el);
+  if (el.dataset.planAdd !== undefined) return planAdd(el.value);
   if (el.dataset.filter) return onFilterChange(el);
   if (el.dataset.grade) return onGradeChange(el);
   if (el.dataset.setting) return onSettingChange(el);

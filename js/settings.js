@@ -108,7 +108,7 @@ function renderSettings() {
   </section>`;
 }
 
-const NUM_SETTINGS = { lifeHours: [0, 12], maxStudy: [0.5, 16], 'pomo.focus': [5, 90], 'pomo.short': [1, 30], 'pomo.long': [5, 60], 'pomo.longEvery': [2, 8] };
+const NUM_SETTINGS = { weeklyGoal: [1, 200], lifeHours: [0, 12], maxStudy: [0.5, 16], 'pomo.focus': [5, 90], 'pomo.short': [1, 30], 'pomo.long': [5, 60], 'pomo.longEvery': [2, 8] };
 
 function onSettingChange(el) {
   const key = el.dataset.setting;

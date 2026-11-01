@@ -144,6 +144,99 @@ describe('우선순위', () => {
   });
 });
 
+describe('오늘 계획 직접 수정', () => {
+  // 월요일 18:30, 남은 4h → 🍅 8개. A(오늘 마감, 3개 필요) B(5일 뒤, 많이 남음) C(5일 뒤)
+  function setup() {
+    fresh({ maxStudy: 12 }, { schedule: [fixed(0, '09:00', '13:00')] });
+    state.tasks = [
+      task({ title: 'A', estHours: 1, due: `${ymd(MON)}T23:00` }),
+      task({ title: 'B', estHours: 10, importance: 4, due: `${ymd(addDays(MON, 5))}T23:59` }),
+      task({ title: 'C', estHours: 3, importance: 1, difficulty: 1, due: `${ymd(addDays(MON, 5))}T23:59` }),
+    ];
+    return state.tasks;
+  }
+  const N = at(0, '18:30');
+  const counts = (r) => r.items.map((it) => [it.t.title, it.pomos]);
+  const edit = (pomos = {}, order = []) => { state.planEdit = { date: ymd(MON), pomos, order }; };
+  test('수정이 없으면 자동 계산 그대로다', () => {
+    setup();
+    const r = planToday(N);
+    eq(r.edited, false); eq(r.used, 8);
+  });
+  test('개수를 정한 과제는 고정되고, 남는 시간만 나머지에 다시 배정된다', () => {
+    const [a, b, c] = setup();
+    edit({ [b.id]: 2 });
+    const r = planToday(N);
+    eq(r.edited, true);
+    eq(r.items.find((it) => it.t === b).pomos, 2);
+    eq(r.used, 8);
+    ok(r.items.find((it) => it.t === c).pomos > 0, '남은 시간이 C로');
+  });
+  test('제외(0개)하면 그 과제는 빠지고 시간은 다른 과제로 간다', () => {
+    const [a, b, c] = setup();
+    edit({ [b.id]: 0 });
+    const r = planToday(N);
+    ok(!r.items.some((it) => it.t === b), 'B 빠짐');
+    eq(r.excluded.map((t) => t.title), ['B']);
+    eq(counts(r), [['A', 3], ['C', 5]], 'B 몫이 C로');
+  });
+  test('순서를 바꾸면 그 순서대로 시간대에 배치된다', () => {
+    const [a, b] = setup();
+    edit({}, [b.id, a.id]);
+    eq(planToday(N).slots[0].t.title, 'B');
+  });
+  test('남은 시간보다 많이 늘리면 들어가지 않은 개수를 알려 준다', () => {
+    const [a] = setup();
+    edit({ [a.id]: 12 });
+    const r = planToday(N);
+    ok(r.overflow > 0, `overflow ${r.overflow}`);
+    eq(r.used + r.overflow, 12, '배치된 수 + 넘친 수 = 정한 수');
+  });
+  test('오늘 마감 과제를 줄이면 부족 경고가 뜬다', () => {
+    const [a] = setup();
+    edit({ [a.id]: 1 });
+    eq(planToday(N).short.map((x) => [x.t.title, x.missing]), [['A', 2]]);
+  });
+  test('수정은 그날만 유지되고 다음 날에는 자동 계산으로 돌아간다', () => {
+    const [a, b] = setup();
+    edit({ [b.id]: 0 });
+    eq(planToday(at(1, '18:30')).edited, false);
+  });
+  test('작업량이 남지 않은 과제도 직접 추가할 수 있다', () => {
+    const [a, b, c] = setup();
+    c.estHours = 0;
+    edit({ [c.id]: 1 });
+    eq(planToday(N).items.find((it) => it.t === c).pomos, 1);
+  });
+});
+
+describe('성과 집계', () => {
+  const log = (date, pomo = 1) => ({ date, ms: 25 * MIN, pomo });
+  test('끝까지 마친 집중(🍅)만 날짜별로 센다', () => {
+    fresh();
+    state.tasks = [task({ logs: [log('2026-11-02'), log('2026-11-02'), log('2026-11-03', 0)] }), task({ logs: [log('2026-11-03')] })];
+    eq(pomoByDay(), { '2026-11-02': 2, '2026-11-03': 1 });
+  });
+  test('주간 합계는 월~일 기준이다', () => {
+    const map = { '2026-11-01': 5, '2026-11-02': 2, '2026-11-08': 3, '2026-11-09': 4 };
+    eq(weekPomos(MON, map), 5);
+  });
+  test('연속 집중일: 오늘 아직 안 했으면 어제부터 센다', () => {
+    const map = { '2026-11-02': 1, '2026-11-03': 2, '2026-11-04': 1 };
+    eq(focusStreak(map, at(2, '20:00')), 3);
+    eq(focusStreak(map, at(3, '09:00')), 3);
+    eq(focusStreak(map, at(4, '09:00')), 0);
+    eq(bestStreak({ ...map, '2026-11-10': 1 }), 3);
+  });
+  test('성과 탭이 샘플·빈 데이터에서 그려지고 토마토 설명이 있다', () => {
+    state = sampleState();
+    const html = renderAchievements();
+    ok(html.includes('토마토(🍅)란?') && html.includes('이번 주 모은 토마토'), '설명·주간 카드');
+    state = defaultState();
+    ok(renderAchievements().includes('아직 없습니다'), '빈 데이터');
+  });
+});
+
 describe('7일 과부하 분석', () => {
   test('가용 시간은 지금 이후만 센다 (오늘 남은 4h + 6일 × 12h = 76h)', () => {
     fresh({ maxStudy: 12 }, { schedule: [fixed(0, '09:00', '13:00')] });
@@ -447,7 +540,7 @@ describe('샘플 데이터 날짜 자동 이동', () => {
 });
 
 describe('화면 렌더링', () => {
-  const views = { 뽀모도로: () => renderFocus(), ToDo: () => renderTasks(), 캘린더: () => renderCalendar(),
+  const views = { 뽀모도로: () => renderFocus(), ToDo: () => renderTasks(), 성과: () => renderAchievements(), 캘린더: () => renderCalendar(),
     통계: () => renderStats(), 성적: () => renderGrades(), 설정: () => renderSettings() };
   Object.entries(views).forEach(([name, fn]) => {
     test(`${name} 화면이 샘플 데이터와 빈 데이터에서 오류 없이 그려진다`, () => {
@@ -569,6 +662,36 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     ok($('.focus-layout .focus-main .carousel'), '왼쪽 슬라이드');
     ok($('.focus-layout .focus-side .slots') && $('.focus-side .pomo-settings'), '오른쪽 계획·설정');
     ok(!$('.car-hint'), '안내 문구 없음');
+  });
+  test('오늘 계획의 + / − / ✕ / 되돌리기 버튼으로 직접 수정한다', () => {
+    show('pomodoro');
+    const id = $('.plan-slot [data-action="plan-inc"]').dataset.id;
+    const before = planToday().items.find((it) => it.t.id === id).pomos;
+    click(`.plan-slot [data-action="plan-dec"][data-id="${id}"]`);
+    eq(planToday().items.find((it) => it.t.id === id)?.pomos ?? 0, before - 1);
+    ok($('.plan-mode.edited'), '직접 수정됨 표시');
+    click(`.plan-slot [data-action="plan-exclude"][data-id="${id}"]`);
+    ok($(`[data-action="plan-restore"][data-id="${id}"]`), '제외 목록에 표시');
+    click(`[data-action="plan-restore"][data-id="${id}"]`);
+    ok(!$(`[data-action="plan-restore"][data-id="${id}"]`), '되돌리면 제외 목록에서 빠짐');
+    click(`.plan-slot [data-action="plan-inc"][data-id="${id}"]`);
+    click('[data-action="plan-reset"]');
+    eq(state.planEdit, null);
+    ok(!$('.plan-mode.edited'), '자동으로 돌아옴');
+  });
+  test('계획에 없는 과제를 추가할 수 있다', () => {
+    show('pomodoro');
+    const sel = $('[data-plan-add]');
+    const id = sel.options[1].value;
+    change('[data-plan-add]', id);
+    ok(planToday().items.some((it) => it.t.id === id), '추가됨');
+    planReset();
+  });
+  test('성과 탭에서 주간 목표를 바꿀 수 있다', () => {
+    show('achieve');
+    change('[data-setting="weeklyGoal"]', '30');
+    eq(state.settings.weeklyGoal, 30);
+    ok($('#view').textContent.includes('/ 30개'), '목표 반영');
   });
   test('추천 이유는 문장이 아니라 태그로 보인다', () => {
     show('pomodoro');

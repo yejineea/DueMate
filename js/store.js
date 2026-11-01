@@ -9,10 +9,11 @@ function defaultState() {
     schedule: [],
     grades: {},
     timer: null, // 지금 다루는 타이머 (진행 중이거나 방금 멈춘 것)
+    planEdit: null, // 오늘 계획 직접 수정 { date, pomos: {과제 id: 개수(0=제외)}, order: [과제 id] }
     timers: {}, // 다른 과제의 일시정지된 타이머 { 과제 id: 타이머 }
     settings: {
       hoursMode: 'auto', dayStart: '09:00', dayEnd: '00:00', lifeHours: 3, maxStudy: 8,
-      dailyHours: [2, 2, 2, 2, 2, 3, 3], alertHours: 24, theme: 'light',
+      dailyHours: [2, 2, 2, 2, 2, 3, 3], alertHours: 24, theme: 'light', weeklyGoal: 20,
       pomodoro: { focus: 25, short: 5, long: 15, longEvery: 4, autoFocus: false, sound: true, notify: true },
     },
   };
@@ -140,6 +141,17 @@ function sampleState() {
       done: true, doneAt: doneAt(6, 23), logs: pomos([[7, 4], [8, 3], [9, 3]]) },
     { title: '경영학원론 1주차 리포트', subject: '경영학원론', type: '보고서', due: due(-10), estHours: 2, importance: 3, difficulty: 2,
       done: true, doneAt: doneAt(9), logs: pomos([[10, 3], [12, 2]]) },
+    // 몇 주 전 완료 (성과 탭의 주별 추이용)
+    { title: '자료구조 과제 1: 배열', subject: '자료구조', type: '코딩', due: due(-20), estHours: 4, importance: 3, difficulty: 3,
+      done: true, doneAt: doneAt(21), logs: pomos([[22, 3], [23, 4], [25, 3]]) },
+    { title: '경영학원론 퀴즈 준비', subject: '경영학원론', type: '시험 공부', due: due(-28), estHours: 2, importance: 2, difficulty: 2,
+      done: true, doneAt: doneAt(28), logs: pomos([[29, 3], [30, 2]]) },
+    { title: '통계학 과제 1장', subject: '통계학', type: '보고서', due: due(-35), estHours: 2, importance: 3, difficulty: 2,
+      done: true, doneAt: doneAt(36), logs: pomos([[36, 2], [37, 3], [39, 2]]) },
+    { title: '영어 자기소개 발표', subject: '영어회화', type: '발표', due: due(-42), estHours: 3, importance: 3, difficulty: 3,
+      done: true, doneAt: doneAt(42), logs: pomos([[43, 4], [45, 3]]) },
+    { title: '웹 과제 1: HTML 기초', subject: '웹프로그래밍', type: '코딩', due: due(-48), estHours: 3, importance: 2, difficulty: 2,
+      done: true, doneAt: doneAt(48), logs: pomos([[49, 3], [51, 3]]) },
   ].map((t) => ({ id: uid(), desc: '', memo: '', done: false, doneAt: null, createdAt: Date.now(), subtasks: [], logs: [], sample: true, estAuto: !t.done, ...t }));
   s.sampleBase = ymd(new Date());
   s.grades = {
