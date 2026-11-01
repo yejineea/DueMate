@@ -50,7 +50,8 @@ function renderDashboard() {
   const recs = recommend().slice(0, 3);
   const wk = weekLoad(startOfWeek(now));
   const alerts = buildAlerts(wk);
-  const { plan, avail } = todayPlan();
+  const tp = planToday();
+  const focus = state.settings.pomodoro.focus;
 
   if (!all.length) {
     return `<section class="panel"><p class="empty">아직 등록된 과제가 없습니다.<br>
@@ -74,8 +75,8 @@ function renderDashboard() {
           <span class="muted small"> ${esc(r.t.subject)} · ${remainText(r.t.due)}</span>
           <p>${esc(priorityText(r.t))}</p>
         </div>`).join('') : '<p class="empty">남은 과제가 없습니다 🎉</p>'}
-      <h3>🗓 오늘의 공부 계획 (가능 ${avail}h)</h3>
-      ${plan.length ? `<ul class="mini">${plan.map((x) => `<li><span>${esc(x.t.title)}</span><b>${x.h.toFixed(1)}h</b></li>`).join('')}</ul>` : '<p class="muted small">배정할 작업이 없습니다.</p>'}
+      <h3>🗓 오늘의 공부 계획 (남은 ${(tp.capMin / 60).toFixed(1)}h)</h3>
+      ${tp.items.length ? `<ul class="mini">${tp.items.map((x) => `<li><span>${esc(x.t.title)}</span><b>${((x.pomos * focus) / 60).toFixed(1)}h</b></li>`).join('')}</ul>` : '<p class="muted small">배정할 작업이 없습니다.</p>'}
     </div>
     <div class="panel">
       <h3>📌 오늘 마감</h3>${miniList(todayDue)}

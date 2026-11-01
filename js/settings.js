@@ -1,4 +1,3 @@
-const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 const fixedHours = (day) => +(state.schedule.filter((s) => Number(s.day) === day)
   .reduce((a, s) => a + (toMin(s.end) - toMin(s.start)) / 60, 0)).toFixed(1);
 

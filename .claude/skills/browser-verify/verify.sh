@@ -4,9 +4,10 @@ set -u
 CHROME="${CHROME:-/c/Program Files/Google/Chrome/Application/chrome.exe}"
 ROOT="$(git rev-parse --show-toplevel)"
 BASE="file:///$(cygpath -m "$ROOT" 2>/dev/null || echo "$ROOT")"
-PROFILE="${TMPDIR:-${TEMP:-/tmp}}/duemate-verify-chrome"
+# 프로필 경로는 Windows 형식이어야 한다 (POSIX 경로를 넘기면 Chrome이 멈춘다)
+PROFILE="$(cygpath -w "${TMPDIR:-/tmp}/duemate-verify-chrome" 2>/dev/null || echo "${TMPDIR:-/tmp}/duemate-verify-chrome")"
 
-chrome() { "$CHROME" --headless=new --disable-gpu --no-first-run --user-data-dir="$PROFILE" "$@" 2>/dev/null; }
+chrome() { timeout 60 "$CHROME" --headless=new --disable-gpu --no-first-run --user-data-dir="$PROFILE" "$@" 2>/dev/null; }
 
 run_tests() {
   local fail=0

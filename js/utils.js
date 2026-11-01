@@ -6,12 +6,21 @@ const pad = (n) => String(n).padStart(2, '0');
 const DOW = '일월화수목금토';
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const hours = (ms) => +(ms / 36e5).toFixed(1);
+const MIN = 6e4, HOUR = 36e5;
+const toMin = (t) => { const [h, m] = String(t).split(':').map(Number); return h * 60 + m; };
+const hm = (ms) => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const weekdayIdx = (d) => (d.getDay() + 6) % 7; // 월=0 ... 일=6
 
 function startOfDay(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
 function startOfWeek(d) { const x = startOfDay(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
 function fmtDay(d) { return `${d.getMonth() + 1}/${d.getDate()}(${DOW[d.getDay()]})`; }
 function fmtDue(due) { const d = new Date(due); return `${fmtDay(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+
+function fmtClock(ms) {
+  const sec = Math.max(0, Math.ceil(ms / 1e3));
+  return `${pad(Math.floor(sec / 60))}:${pad(sec % 60)}`;
+}
 
 function fmtDur(ms) {
   const h = Math.floor(ms / 36e5), m = Math.floor((ms % 36e5) / 6e4), s = Math.floor((ms % 6e4) / 1e3);

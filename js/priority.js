@@ -1,16 +1,3 @@
-// 마감 전까지 사용할 수 있는 공부 시간 (하루 09~24시에 공부 가능 시간이 고르게 분포한다고 가정)
-function availableUntil(end, now = Date.now()) {
-  const endMs = new Date(end).getTime();
-  const WINDOW = 15 * 36e5;
-  let total = 0;
-  for (let d = startOfDay(new Date(now)), i = 0; d.getTime() < endMs && i < 366; d = addDays(d, 1), i++) {
-    const from = Math.max(d.getTime() + 9 * 36e5, now);
-    const to = Math.min(addDays(d, 1).getTime(), endMs);
-    if (to > from) total += dailyAvail(d) * ((to - from) / WINDOW);
-  }
-  return total;
-}
-
 function priorityOf(t, now = Date.now()) {
   const hoursLeft = (new Date(t.due) - now) / 36e5;
   const work = remainingWork(t);
@@ -47,23 +34,10 @@ function priorityText(t) {
   return p.reasons.length ? `${p.reasons.join(' · ')} → ${tail}` : tail;
 }
 
-function recommend() {
+function recommend(now = Date.now()) {
   return state.tasks.filter((t) => !t.done)
-    .map((t) => ({ t, p: priorityOf(t) }))
-    .sort((a, b) => b.p.score - a.p.score);
-}
-
-// 오늘의 공부 가능 시간을 우선순위 순서대로 배분
-function todayPlan() {
-  let left = dailyAvail(new Date());
-  const plan = [];
-  recommend().forEach(({ t, p }) => {
-    if (left <= 0 || p.work <= 0) return;
-    const h = Math.min(left, p.work);
-    plan.push({ t, h });
-    left -= h;
-  });
-  return { plan, avail: dailyAvail(new Date()) };
+    .map((t) => ({ t, p: priorityOf(t, now) }))
+    .sort((a, b) => b.p.score - a.p.score || new Date(a.t.due) - new Date(b.t.due));
 }
 
 // 주간 과부하 분석: 과제 개수가 아니라 '남은 예상 작업 시간'으로 판단
@@ -92,6 +66,6 @@ function weekLoad(weekStart, now = Date.now()) {
     d.cumAvail = availableUntil(addDays(d.date, 1), now);
     d.crunch = d.date >= today && d.load > 0 && cum > d.cumAvail;
   });
-  const avail = weeklyHours();
+  const avail = weeklyHours(weekStart);
   return { days, total, avail, over: total > avail };
 }

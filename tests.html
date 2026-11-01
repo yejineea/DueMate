@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DueMate 테스트</title>
+  <style>
+    body { font-family: -apple-system, "Pretendard", "Malgun Gothic", sans-serif; max-width: 860px; margin: 24px auto; padding: 0 16px; }
+    #summary { font-size: 18px; font-weight: 700; }
+    li { margin: 4px 0; font-size: 14px; }
+    li.pass { color: #2f7d4a; } li.fail { color: #c0262d; font-weight: 700; }
+    h2 { font-size: 15px; margin: 18px 0 6px; }
+  </style>
+</head>
+<body>
+  <h1>DueMate 브라우저 테스트</h1>
+  <p class="muted">핵심 계산 로직을 실제 브라우저에서 검증합니다. 테스트는 메모리 상태만 사용하며 저장된 데이터를 바꾸지 않습니다.</p>
+  <p id="summary">실행 중...</p>
+  <div id="results"></div>
+  <div id="toast"></div>
+  <div id="timerbar"></div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/availability.js"></script>
+  <script src="js/priority.js"></script>
+  <script src="js/planner.js"></script>
+  <script src="js/grades.js"></script>
+  <script src="js/tests.js"></script>
+</body>
+</html>
