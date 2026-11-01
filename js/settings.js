@@ -1,37 +1,89 @@
-const fixedHours = (day) => +(state.schedule.filter((s) => Number(s.day) === day)
-  .reduce((a, s) => a + (toMin(s.end) - toMin(s.start)) / 60, 0)).toFixed(1);
+const fmtH = (h) => `${+h.toFixed(1)}h`;
 
-function renderSettings() {
+function studyTimeSection() {
   const s = state.settings;
-  const sched = [...state.schedule].sort((a, b) => a.day - b.day || a.start.localeCompare(b.start));
+  const manual = s.hoursMode === 'manual';
+  const ws = startOfWeek(new Date());
+  const days = WEEKDAYS.map((d, i) => ({ d, i, c: dayCapacity(addDays(ws, i)) }));
+  const recent = recentStudyAvg();
+  const sched = [...state.schedule].sort((a, b) => a.start.localeCompare(b.start));
   return `
   <section class="panel">
-    <h3>요일별 공부 가능 시간</h3>
-    <div class="days">${WEEKDAYS.map((d, i) => `
-      <label>${d} <span class="muted small">고정 일정 ${fixedHours(i)}h</span>
-        <input type="number" min="0" max="24" step="0.5" data-setting="day" data-i="${i}" value="${s.dailyHours[i]}">
-      </label>`).join('')}</div>
-    <p>주간 공부 가능 시간: <b>${weeklyHours()}시간</b> <span class="muted small">— 우선순위 추천과 과부하 분석에 사용됩니다.</span></p>
-  </section>
+    <div class="toolbar">
+      <h3 style="margin:0">공부 가능 시간</h3>
+      <span class="spacer"></span>
+      <div class="seg">
+        <button class="${manual ? '' : 'on'}" data-action="hours-mode" data-mode="auto">자동 계산</button>
+        <button class="${manual ? 'on' : ''}" data-action="hours-mode" data-mode="manual">직접 입력</button>
+      </div>
+    </div>
+    ${manual ? '<p class="muted small">요일별 공부 가능 시간을 직접 입력합니다. 마감 전 가용 시간은 아래 시간표를 뺀 빈 시간에 나눠 계산됩니다.</p>' : `
+    <p class="muted small">하루 활동 시간에서 아래 시간표의 수업·알바를 빼고, 식사·이동·휴식 시간을 뺀 나머지를 공부 가능 시간으로 계산합니다.</p>
+    <div class="row">
+      <label class="form">하루 활동 시간
+        <span class="inline" style="margin:0"><input type="time" data-setting="dayStart" value="${s.dayStart}"> ~ <input type="time" data-setting="dayEnd" value="${s.dayEnd}"></span>
+        <span class="muted small">종료가 시작보다 이르면 다음 날 새벽까지로 계산</span>
+      </label>
+      <label class="form">식사·이동·휴식 (h/일)<input type="number" min="0" max="12" step="0.5" data-setting="lifeHours" value="${s.lifeHours}"></label>
+      <label class="form">하루 최대 공부 (h)<input type="number" min="0.5" max="16" step="0.5" data-setting="maxStudy" value="${s.maxStudy}"></label>
+    </div>`}
+    <div class="table-wrap"><table class="table cap-table">
+      <thead><tr><th>요일</th><th>활동</th><th>수업·알바</th><th>빈 시간</th><th>생활</th><th>공부 가능</th></tr></thead>
+      <tbody>${days.map(({ d, i, c }) => `<tr>
+        <td>${d}</td><td>${fmtH(c.winH)}</td><td>${c.fixedH ? fmtH(c.fixedH) : '—'}</td><td>${fmtH(c.freeH)}</td>
+        <td>${manual ? '—' : fmtH(c.lifeH)}</td>
+        <td>${manual ? `<input type="number" min="0" max="24" step="0.5" data-setting="day" data-i="${i}" value="${s.dailyHours[i]}">`
+          : `<b>${fmtH(c.study)}</b>${c.study < c.freeH - c.lifeH - 0.01 ? ' <span class="muted small">(최대)</span>' : ''}`}</td>
+      </tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="5">주간 합계</td><td><b>${fmtH(weeklyHours(ws))}</b></td></tr></tfoot>
+    </table></div>
+    ${recent ? `<p class="muted small">참고: 최근 14일 동안 기록이 있는 ${recent.days}일의 평균 학습 시간은 <b>${fmtH(recent.avg)}</b>입니다.</p>` : ''}
 
-  <section class="panel">
-    <h3>수업·아르바이트 시간표</h3>
-    ${sched.length ? `<table class="table"><thead><tr><th>요일</th><th>시간</th><th>내용</th><th></th></tr></thead><tbody>
-      ${sched.map((x) => `<tr><td>${WEEKDAYS[x.day]}</td><td>${x.start} ~ ${x.end}</td><td>${esc(x.label)}</td>
-        <td><button class="btn xs danger" data-action="del-schedule" data-sid="${x.id}">삭제</button></td></tr>`).join('')}
-    </tbody></table>` : '<p class="muted small">등록된 고정 일정이 없습니다.</p>'}
+    <h4>수업·아르바이트 시간표</h4>
+    ${sched.length ? `<div class="sched">${WEEKDAYS.map((d, i) => {
+      const items = sched.filter((x) => Number(x.day) === i);
+      return items.length ? `<div class="sched-row"><b>${d}</b><div class="chips">${items.map((x) => `
+        <span class="chip-tag">${x.start}~${x.end} ${esc(x.label)} <button class="btn xs" data-action="del-schedule" data-sid="${x.id}" title="삭제">✕</button></span>`).join('')}</div></div>` : '';
+    }).join('')}</div>` : '<p class="muted small">등록된 고정 일정이 없습니다. 수업·알바를 등록하면 공부 가능 시간에 바로 반영됩니다.</p>'}
     <form class="inline" data-form="add-schedule">
       <select name="day">${WEEKDAYS.map((d, i) => `<option value="${i}">${d}</option>`).join('')}</select>
       <input type="time" name="start" required><input type="time" name="end" required>
       <input name="label" placeholder="예: 자료구조 수업 / 카페 알바" required maxlength="30">
       <button class="btn sm">추가</button>
     </form>
+  </section>`;
+}
+
+function pomodoroSection() {
+  const pm = state.settings.pomodoro;
+  const num = (key, label, min, max) => `<label class="form">${label}<input type="number" min="${min}" max="${max}" step="1" data-setting="pomo.${key}" value="${pm[key]}"></label>`;
+  const check = (key, label) => `<label class="check"><input type="checkbox" data-setting="pomo.${key}" ${pm[key] ? 'checked' : ''}> ${label}</label>`;
+  return `
+  <section class="panel">
+    <h3>뽀모도로</h3>
+    <div class="row">${num('focus', '집중 (분)', 5, 90)}${num('short', '짧은 휴식 (분)', 1, 30)}${num('long', '긴 휴식 (분)', 5, 60)}${num('longEvery', '긴 휴식 간격 (회)', 2, 8)}</div>
+    <div class="inline">${check('autoFocus', '휴식이 끝나면 다음 집중 자동 시작')}${check('sound', '종료 알림음')}${check('notify', '브라우저 알림')}</div>
+  </section>`;
+}
+
+function renderSettings() {
+  const s = state.settings;
+  return `
+  ${studyTimeSection()}
+  ${pomodoroSection()}
+
+  <section class="panel">
+    <h3>과목</h3>
+    <div class="chips">${state.subjects.map((x) => `<span class="chip-tag">${esc(x)} <button class="btn xs" data-action="del-subject" data-name="${esc(x)}">삭제</button></span>`).join('') || '<span class="muted small">과목이 없습니다.</span>'}</div>
+    <form class="inline" data-form="add-subject">
+      <input name="subject" placeholder="새 과목명" required maxlength="30"><button class="btn sm">추가</button>
+    </form>
   </section>
 
   <section class="panel">
     <h3>알림 · 테마</h3>
     <div class="row">
-      <label class="form">임박 마감 알림 기준
+      <label class="form">임박 마감 경고 기준
         <select data-setting="alertHours">${[6, 12, 24, 48, 72].map((h) => `<option value="${h}" ${h === s.alertHours ? 'selected' : ''}>마감 ${h}시간 전</option>`).join('')}</select>
       </label>
       <label class="form">테마
@@ -44,15 +96,7 @@ function renderSettings() {
   </section>
 
   <section class="panel">
-    <h3>과목 관리</h3>
-    <div class="chips">${state.subjects.map((x) => `<span class="chip-tag">${esc(x)} <button class="btn xs" data-action="del-subject" data-name="${esc(x)}">삭제</button></span>`).join('') || '<span class="muted small">과목이 없습니다.</span>'}</div>
-    <form class="inline" data-form="add-subject">
-      <input name="subject" placeholder="새 과목명" required maxlength="30"><button class="btn sm">추가</button>
-    </form>
-  </section>
-
-  <section class="panel">
-    <h3>데이터 관리</h3>
+    <h3>데이터</h3>
     <div class="toolbar">
       <button class="btn" data-action="export-json">JSON 백업</button>
       <button class="btn" data-action="export-csv">과제 CSV 내보내기</button>
@@ -65,18 +109,37 @@ function renderSettings() {
   </section>`;
 }
 
+const NUM_SETTINGS = { lifeHours: [0, 12], maxStudy: [0.5, 16], 'pomo.focus': [5, 90], 'pomo.short': [1, 30], 'pomo.long': [5, 60], 'pomo.longEvery': [2, 8] };
+
 function onSettingChange(el) {
   const key = el.dataset.setting;
+  const s = state.settings;
   if (key === 'day') {
     const v = Number(el.value);
     if (Number.isNaN(v) || v < 0 || v > 24) { toast('0~24 사이로 입력하세요'); render(); return; }
-    state.settings.dailyHours[Number(el.dataset.i)] = v;
+    s.dailyHours[Number(el.dataset.i)] = v;
+  } else if (NUM_SETTINGS[key]) {
+    const [lo, hi] = NUM_SETTINGS[key];
+    const v = Number(el.value);
+    if (el.value === '' || Number.isNaN(v) || v < lo || v > hi) { toast(`${lo}~${hi} 사이로 입력하세요`); render(); return; }
+    if (key.startsWith('pomo.')) s.pomodoro[key.slice(5)] = v; else s[key] = v;
+  } else if (key.startsWith('pomo.')) {
+    s.pomodoro[key.slice(5)] = el.checked;
+  } else if (key === 'dayStart' || key === 'dayEnd') {
+    if (!el.value) { render(); return; }
+    s[key] = el.value;
+    if (s.dayStart === s.dayEnd) toast('활동 시간이 24시간으로 계산됩니다');
   } else if (key === 'alertHours') {
-    state.settings.alertHours = Number(el.value);
+    s.alertHours = Number(el.value);
   } else if (key === 'theme') {
-    state.settings.theme = el.value;
+    s.theme = el.value;
     applyTheme();
   }
+  save(); render();
+}
+
+function setHoursMode(mode) {
+  state.settings.hoursMode = mode;
   save(); render();
 }
 
@@ -114,10 +177,10 @@ function exportJSON() {
 
 function exportCSV() {
   const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const header = ['과목', '제목', '유형', '마감', '예상시간(h)', '실제시간(h)', '중요도', '난이도', '진행률(%)', '상태'];
-  const rows = state.tasks.map((t) => [t.subject, t.title, t.type, t.due.replace('T', ' '), t.estHours, hours(actualMs(t)),
+  const header = ['과목', '제목', '유형', '마감', '예상시간(h)', '실제시간(h)', '뽀모도로', '중요도', '난이도', '진행률(%)', '상태'];
+  const rows = state.tasks.map((t) => [t.subject, t.title, t.type, t.due.replace('T', ' '), t.estHours, hours(actualMs(t)), pomoCount(t),
     t.importance, t.difficulty, progress(t), t.done ? '완료' : '미완료'].map(q).join(','));
-  download(`duemate-tasks-${ymd(new Date())}.csv`, '\uFEFF' + [header.map(q).join(','), ...rows].join('\n'), 'text/csv;charset=utf-8');
+  download(`duemate-tasks-${ymd(new Date())}.csv`, '﻿' + [header.map(q).join(','), ...rows].join('\n'), 'text/csv;charset=utf-8');
 }
 
 function importJSON(file) {

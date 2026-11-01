@@ -129,3 +129,16 @@ input, select, textarea { font: inherit; color: var(--text); background: var(--b
 .mono { font-family: ui-monospace, Consolas, monospace; font-size: 20px; font-weight: 700; }
 .toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #222; color: #fff; padding: 10px 16px; border-radius: 10px; opacity: 0; transition: .25s; pointer-events: none; z-index: 60; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--card); color: var(--muted); padding: 6px 12px; cursor: pointer; font-size: 13px; }
+.seg button.on { background: var(--primary); color: #fff; font-weight: 700; }
+.check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; margin-right: 12px; }
+.table-wrap { overflow-x: auto; }
+.table tfoot td { border-bottom: 0; font-weight: 600; }
+.cap-table input { width: 80px; }
+.right { text-align: right; }
+.panel h4 { margin: 16px 0 8px; font-size: 14px; }
+.sched { display: flex; flex-direction: column; gap: 6px; }
+.sched-row { display: flex; gap: 10px; align-items: center; }
+.sched-row > b { width: 20px; font-size: 13px; }

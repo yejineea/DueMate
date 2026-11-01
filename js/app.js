@@ -1,8 +1,8 @@
-let currentTab = 'dashboard';
 const VIEWS = {
   dashboard: 'renderDashboard', tasks: 'renderTasks', calendar: 'renderCalendar',
   stats: 'renderStats', grades: 'renderGrades', settings: 'renderSettings',
 };
+let currentTab = VIEWS[params.get('tab')] ? params.get('tab') : 'dashboard';
 
 function render() {
   const fn = window[VIEWS[currentTab]];
@@ -36,6 +36,7 @@ const actions = {
   'cal-select': (el) => { cal.selected = el.dataset.date; render(); },
   'del-grade': (el) => delGrade(el.dataset.gid),
   'del-schedule': (el) => delSchedule(el.dataset.sid),
+  'hours-mode': (el) => setHoursMode(el.dataset.mode),
   'del-subject': (el) => delSubject(el.dataset.name),
   'export-json': () => exportJSON(),
   'export-csv': () => exportCSV(),
