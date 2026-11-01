@@ -9,11 +9,14 @@ function defaultState() {
     schedule: [],
     grades: {},
     timer: null, // 지금 다루는 타이머 (진행 중이거나 방금 멈춘 것)
+    events: [], // 하루 일정 { id, date, start, end, label }
+    notified: [], // 보낸 마감 알림 키 (같은 알림 반복 방지)
+    lastBackup: null,
     planEdit: null, // 오늘 계획 직접 수정 { date, pomos: {과제 id: 개수(0=제외)}, order: [과제 id] }
     timers: {}, // 다른 과제의 일시정지된 타이머 { 과제 id: 타이머 }
     settings: {
       hoursMode: 'auto', dayStart: '09:00', dayEnd: '00:00', lifeHours: 3, maxStudy: 8,
-      dailyHours: [2, 2, 2, 2, 2, 3, 3], alertHours: 24, theme: 'light', weeklyGoal: 20,
+      dailyHours: [2, 2, 2, 2, 2, 3, 3], alertHours: 24, deadlineNotify: true, theme: 'light', weeklyGoal: 20,
       pomodoro: { focus: 25, short: 5, long: 15, longEvery: 4, autoFocus: false, sound: true, notify: true },
     },
   };
@@ -36,6 +39,7 @@ function normalize(data) {
   }
   // 없어졌거나 완료된 과제의 보관 타이머 정리
   s.timers = Object.fromEntries(Object.entries(s.timers || {}).filter(([id]) => s.tasks.some((t) => t.id === id && !t.done)));
+  s.events = (s.events || []).filter((x) => x.date >= ymd(addDays(new Date(), -30)));
   rollSample(s);
   refreshAutoEstimates(s);
   return s;
@@ -176,6 +180,7 @@ function sampleState() {
     fixed(3, '10:30', '12:00', '웹프로그래밍 수업'), fixed(3, '13:00', '15:00', '경영학원론 수업'),
     fixed(4, '10:30', '12:00', '통계학 수업'), fixed(4, '18:00', '22:00', '카페 아르바이트'), fixed(5, '12:00', '18:00', '카페 아르바이트'),
   ];
+  s.events = [{ id: uid(), date: ymd(addDays(new Date(), 2)), start: '18:00', end: '21:00', label: '동아리 모임' }];
   refreshAutoEstimates(s);
   return s;
 }

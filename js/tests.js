@@ -74,6 +74,36 @@ describe('공부 가능 시간 자동 계산', () => {
   });
 });
 
+describe('하루 일정', () => {
+  test('그날의 하루 일정도 공부 가능 시간에서 뺀다 (월 18~21시 모임 3h)', () => {
+    fresh({ maxStudy: 12 }, { events: [{ id: 'e1', date: ymd(MON), start: '18:00', end: '21:00', label: '모임' }] });
+    near(dayCapacity(MON).fixedH, 3);
+    near(dayCapacity(addDays(MON, 7)).fixedH, 0, '다음 주 월요일은 영향 없음');
+  });
+  test('30일 넘게 지난 하루 일정은 불러올 때 정리된다', () => {
+    const s = normalize({ events: [{ id: 'old', date: ymd(addDays(new Date(), -40)), start: '10:00', end: '11:00', label: 'x' },
+      { id: 'new', date: ymd(new Date()), start: '10:00', end: '11:00', label: 'y' }] });
+    eq(s.events.map((x) => x.id), ['new']);
+  });
+});
+
+describe('마감 알림', () => {
+  test('임박 기준에 들어올 때 한 번, 1시간 전에 한 번만 알린다', () => {
+    fresh({ alertHours: 24 });
+    const now = at(0, '10:00');
+    state.tasks = [task({ title: 'R', due: `${ymd(MON)}T20:00` }), task({ title: 'Far', due: `${ymd(addDays(MON, 5))}T20:00` })];
+    eq(checkDeadlines(now).map((x) => [x.t.title, x.stage]), [['R', 'near']]);
+    eq(checkDeadlines(now + HOUR).length, 0, '반복 없음');
+    eq(checkDeadlines(at(0, '19:30')).map((x) => x.stage), ['1h']);
+    eq(checkDeadlines(at(0, '19:40')).length, 0);
+  });
+  test('알림을 끄면 보내지 않는다', () => {
+    fresh({ deadlineNotify: false });
+    state.tasks = [task({ due: `${ymd(MON)}T20:00` })];
+    eq(checkDeadlines(at(0, '19:30')).length, 0);
+  });
+});
+
 describe('남은 작업량', () => {
   test('하위 작업이 없으면 기록된 작업 시간만큼 줄어든다', () => {
     near(remainingWork(task({ estHours: 4, logs: [{ date: '2026-11-02', ms: HOUR }] })), 3);
@@ -727,6 +757,57 @@ describe('화면 조작 (실제 클릭·입력)', () => {
     click(cur('.step-ask [data-action="step-no"]'));
     ok(!next.done && !$(cur('.step-ask')), '그대로');
     focusPick = null;
+  });
+  test('완료 처리 후 토스트의 되돌리기로 취소할 수 있다', () => {
+    show('pomodoro');
+    const id = $('.slide.current').dataset.id;
+    click(cur('[data-action="toggle-done"]'));
+    ok(getTask(id).done, '완료됨');
+    click('#toast [data-action="toast-undo"]');
+    ok(!getTask(id).done, '되돌려짐');
+    ok($$('.slide').some((el) => el.dataset.id === id), '슬라이드에 다시 나타남');
+  });
+  test('하위 작업은 브라우저 입력창 없이 그 자리에서 고친다', () => {
+    show('todo');
+    const t = state.tasks.find((x) => !x.done && x.subtasks.length);
+    taskUI.open.add(t.id); render();
+    const s = t.subtasks[0];
+    click(`[data-action="edit-sub"][data-sid="${s.id}"]`);
+    const f = $('form[data-form="edit-sub"]');
+    ok(f, '입력칸 열림');
+    f.elements.text.value = '고친 단계';
+    f.requestSubmit();
+    eq(s.text, '고친 단계');
+    ok(!$('form[data-form="edit-sub"]'), '입력칸 닫힘');
+    taskUI.open.delete(t.id);
+  });
+  test('시간표는 요일 여러 개를 골라 한 번에 추가한다', () => {
+    show('settings');
+    state.schedule = []; render();
+    const f = $('form[data-form="add-schedule"]');
+    f.querySelectorAll('[name="days"]')[0].checked = true;
+    f.querySelectorAll('[name="days"]')[2].checked = true;
+    f.elements.start.value = '09:00'; f.elements.end.value = '10:30'; f.elements.label.value = '수업';
+    f.requestSubmit();
+    eq(state.schedule.map((x) => x.day).sort(), [0, 2]);
+  });
+  test('설정에서 하루 일정을 추가하면 그날 공부 가능 시간이 줄어든다', () => {
+    show('settings');
+    state.events = []; state.schedule = []; render(); // 시간표와 겹치지 않게
+    const date = ymd(addDays(new Date(), 3));
+    const before = dayCapacity(new Date(`${date}T00:00`)).fixedH;
+    const f = $('form[data-form="add-event"]');
+    f.elements.date.value = date; f.elements.start.value = '19:00'; f.elements.end.value = '21:00'; f.elements.label.value = '약속';
+    f.requestSubmit();
+    near(dayCapacity(new Date(`${date}T00:00`)).fixedH - before, 2);
+    ok($('#view').textContent.includes('약속'), '목록 표시');
+  });
+  test('백업한 적이 없으면 설정 맨 위에 백업 안내가 뜨고, 백업하면 사라진다', () => {
+    show('settings');
+    state.lastBackup = null; render();
+    ok($('.backup-alert'), '안내 표시');
+    state.lastBackup = Date.now(); render();
+    ok(!$('.backup-alert') && $('#view').textContent.includes('마지막 백업: 오늘'), '사라지고 날짜 표시');
   });
   test('추천 이유는 문장이 아니라 태그로 보인다', () => {
     show('pomodoro');

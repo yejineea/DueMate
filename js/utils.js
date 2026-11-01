@@ -36,12 +36,22 @@ function remainText(due) {
 }
 
 let toastTimer;
-function toast(msg) {
+let toastUndo = null; // 토스트의 "되돌리기" 버튼이 실행할 함수
+function toast(msg, undo) {
   const el = $('#toast');
-  el.textContent = msg;
+  el.innerHTML = esc(msg) + (undo ? ' <button class="toast-btn" data-action="toast-undo">되돌리기</button>' : '');
+  toastUndo = undo || null;
+  el.classList.toggle('actionable', !!undo);
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+  toastTimer = setTimeout(() => { el.classList.remove('show'); toastUndo = null; }, undo ? 6000 : 2200);
+}
+
+function runToastUndo() {
+  const fn = toastUndo;
+  toastUndo = null;
+  $('#toast').classList.remove('show');
+  if (fn) fn();
 }
 
 function hRow(label, value, max, text, over = false) {

@@ -28,7 +28,7 @@ function studyTimeSection() {
       <label class="form">하루 최대 공부 (h)<input type="number" min="0.5" max="16" step="0.5" data-setting="maxStudy" value="${s.maxStudy}"></label>
     </div>`}
     <div class="table-wrap"><table class="table cap-table">
-      <thead><tr><th>요일</th><th>활동</th><th>수업·알바</th><th>빈 시간</th><th>생활</th><th>공부 가능</th></tr></thead>
+      <thead><tr><th>요일 (이번 주)</th><th>활동</th><th>수업·알바·일정</th><th>빈 시간</th><th>생활</th><th>공부 가능</th></tr></thead>
       <tbody>${days.map(({ d, i, c }) => `<tr>
         <td>${d}</td><td>${fmtH(c.winH)}</td><td>${c.fixedH ? fmtH(c.fixedH) : '—'}</td><td>${fmtH(c.freeH)}</td>
         <td>${manual ? '—' : fmtH(c.lifeH)}</td>
@@ -46,9 +46,21 @@ function studyTimeSection() {
         <span class="chip-tag">${x.start}~${x.end} ${esc(x.label)} <button class="btn xs" data-action="del-schedule" data-sid="${x.id}" title="삭제">✕</button></span>`).join('')}</div></div>` : '';
     }).join('')}</div>` : '<p class="muted small">등록된 고정 일정이 없습니다. 수업·알바를 등록하면 공부 가능 시간에 바로 반영됩니다.</p>'}
     <form class="inline" data-form="add-schedule">
-      <select name="day">${WEEKDAYS.map((d, i) => `<option value="${i}">${d}</option>`).join('')}</select>
+      <span class="daychks">${WEEKDAYS.map((d, i) => `<label class="daychk"><input type="checkbox" name="days" value="${i}"><span>${d}</span></label>`).join('')}</span>
       <input type="time" name="start" required><input type="time" name="end" required>
       <input name="label" placeholder="예: 자료구조 수업 / 카페 알바" required maxlength="30">
+      <button class="btn sm">추가</button>
+    </form>
+    <p class="muted small" style="margin:4px 0 0">요일을 여러 개 고르면 한 번에 추가됩니다 (예: 월·수 수업).</p>
+
+    <h4>하루 일정 (약속·행사 등 반복되지 않는 일정)</h4>
+    ${upcomingEvents().length ? `<div class="chips">${upcomingEvents().map((x) => `
+      <span class="chip-tag">${fmtDay(new Date(`${x.date}T00:00`))} ${x.start}~${x.end} ${esc(x.label)} <button class="btn xs" data-action="del-event" data-eid="${x.id}" title="삭제">✕</button></span>`).join('')}</div>`
+      : '<p class="muted small">등록된 하루 일정이 없습니다. 그날의 공부 가능 시간에서 자동으로 빠집니다.</p>'}
+    <form class="inline" data-form="add-event">
+      <input type="date" name="date" value="${ymd(new Date())}" required>
+      <input type="time" name="start" required><input type="time" name="end" required>
+      <input name="label" placeholder="예: 동아리 모임 / 가족 행사" required maxlength="30">
       <button class="btn sm">추가</button>
     </form>
   </section>`;
@@ -66,9 +78,20 @@ function pomodoroSection() {
   </details>`;
 }
 
+const backupDays = () => (state.lastBackup ? Math.floor((Date.now() - state.lastBackup) / 864e5) : null);
+const backupText = () => (state.lastBackup ? `마지막 백업: ${backupDays() ? `${backupDays()}일 전` : '오늘'}` : '아직 백업하지 않았습니다');
+
+// 일주일 넘게 백업하지 않았으면 설정 맨 위에 알림
+function backupReminder() {
+  if (DEMO || !state.tasks.length || (state.lastBackup && backupDays() < 7)) return '';
+  return `<div class="alert warn backup-alert"><b>백업</b> · ${backupText()} · 브라우저 기록을 지우면 데이터가 사라집니다
+    <button class="btn xs" data-action="export-json">지금 백업</button></div>`;
+}
+
 function renderSettings() {
   const s = state.settings;
   return `
+  ${backupReminder()}
   ${studyTimeSection()}
 
   <section class="panel">
@@ -84,6 +107,7 @@ function renderSettings() {
     <div class="row">
       <label class="form">임박 마감 경고 기준
         <select data-setting="alertHours">${[6, 12, 24, 48, 72].map((h) => `<option value="${h}" ${h === s.alertHours ? 'selected' : ''}>마감 ${h}시간 전</option>`).join('')}</select>
+        <label class="check"><input type="checkbox" data-setting="deadlineNotify" ${s.deadlineNotify ? 'checked' : ''}> 브라우저 알림도 보내기 (이 기준 시점 + 1시간 전)</label>
       </label>
       <label class="form">테마
         <select data-setting="theme">
@@ -104,7 +128,7 @@ function renderSettings() {
       <button class="btn" data-action="load-sample">샘플 데이터 불러오기</button>
       <button class="btn danger" data-action="reset-data">데이터 초기화</button>
     </div>
-    <p class="muted small">모든 데이터는 이 브라우저의 localStorage에만 저장됩니다. 브라우저를 바꾸기 전에 백업하세요.</p>
+    <p class="muted small">${backupText()} · 모든 데이터는 이 브라우저에만 저장됩니다. 다른 기기에서 쓰려면 JSON 백업 파일을 그 기기에서 "JSON 복원"으로 불러오세요.</p>
   </section>`;
 }
 
@@ -128,6 +152,11 @@ function onSettingChange(el) {
     if (!el.value) { render(); return; }
     s[key] = el.value;
     if (s.dayStart === s.dayEnd) toast('활동 시간이 24시간으로 계산됩니다');
+  } else if (key === 'deadlineNotify') {
+    s.deadlineNotify = el.checked;
+    if (el.checked && 'Notification' in window && Notification.permission === 'default') {
+      try { Notification.requestPermission(); } catch (e) { /* 미지원 */ }
+    }
   } else if (key === 'alertHours') {
     s.alertHours = Number(el.value);
   } else if (key === 'theme') {
@@ -143,9 +172,29 @@ function setHoursMode(mode) {
 }
 
 function addSchedule(form) {
-  const d = Object.fromEntries(new FormData(form));
+  const fd = new FormData(form);
+  const d = Object.fromEntries(fd);
+  const days = fd.getAll('days').map(Number);
+  if (!days.length) return toast('요일을 하나 이상 고르세요');
   if (toMin(d.end) <= toMin(d.start)) return toast('종료 시간이 시작 시간보다 늦어야 합니다');
-  state.schedule.push({ id: uid(), day: Number(d.day), start: d.start, end: d.end, label: d.label.trim() });
+  days.forEach((day) => state.schedule.push({ id: uid(), day, start: d.start, end: d.end, label: d.label.trim() }));
+  save(); render();
+  toast(`${days.map((i) => WEEKDAYS[i]).join('·')} 일정을 추가했습니다`);
+}
+
+// 하루 일정: 지난 일정은 목록에서 숨긴다
+const upcomingEvents = () => state.events.filter((x) => x.date >= ymd(new Date())).sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+
+function addEvent(form) {
+  const d = Object.fromEntries(new FormData(form));
+  if (!d.date) return toast('날짜를 고르세요');
+  if (toMin(d.end) <= toMin(d.start)) return toast('종료 시간이 시작 시간보다 늦어야 합니다');
+  state.events.push({ id: uid(), date: d.date, start: d.start, end: d.end, label: d.label.trim() });
+  save(); render();
+}
+
+function delEvent(eid) {
+  state.events = state.events.filter((x) => x.id !== eid);
   save(); render();
 }
 
@@ -171,6 +220,8 @@ function delSubject(name) {
 }
 
 function exportJSON() {
+  state.lastBackup = Date.now();
+  save(); render();
   download(`duemate-backup-${ymd(new Date())}.json`, JSON.stringify(state, null, 2), 'application/json');
 }
 

@@ -36,6 +36,32 @@ function priorityTags(t, p = priorityOf(t)) {
   return `<div class="tags">${p.tags.map(([text, kind]) => `<span class="tag ${kind}">${esc(text)}</span>`).join('')}</div>`;
 }
 
+// 마감 알림: 임박 기준(설정) 안에 들어올 때 한 번, 1시간 전에 한 번. 보낸 알림은 기억해 반복하지 않는다.
+function checkDeadlines(now = Date.now()) {
+  if (!state.settings.deadlineNotify || DEMO) return [];
+  const sent = [];
+  state.tasks.filter((t) => !t.done).forEach((t) => {
+    const h = (new Date(t.due) - now) / HOUR;
+    const stage = h <= 0 ? null : h <= 1 ? '1h' : h <= state.settings.alertHours ? 'near' : null;
+    const key = stage && `${t.id}|${t.due}|${stage}`;
+    if (!key || state.notified.includes(key)) return;
+    state.notified.push(key);
+    sent.push({ t, stage });
+  });
+  if (!sent.length) return sent;
+  state.notified = state.notified.slice(-200);
+  save();
+  sent.forEach(({ t, stage }) => {
+    const msg = `마감 ${stage === '1h' ? '1시간 전' : remainText(t.due).replace(' 남음', ' 전')} · ${t.title}`;
+    let shown = false;
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try { new Notification('DueMate 마감 알림', { body: msg }); shown = true; } catch (e) { /* 미지원 */ }
+    }
+    if (!shown) toast(msg);
+  });
+  return sent;
+}
+
 function recommend(now = Date.now()) {
   return state.tasks.filter((t) => !t.done)
     .map((t) => ({ t, p: priorityOf(t, now) }))

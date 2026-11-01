@@ -24,6 +24,9 @@ const actions = {
   'step-yes': (el) => stepDone(el.dataset.id, el.dataset.sid),
   'step-no': () => { stepAsk = null; render(); },
   'edit-sub': (el) => editSub(el.dataset.id, el.dataset.sid),
+  'cancel-sub': () => { taskUI.editSub = null; render(); },
+  'toast-undo': () => runToastUndo(),
+  'del-event': (el) => delEvent(el.dataset.eid),
   'del-sub': (el) => delSub(el.dataset.id, el.dataset.sid),
   'fill-template': () => fillTemplate(),
   'close-modal': () => closeModal(),
@@ -65,6 +68,8 @@ const forms = {
   'add-sub': (f) => addSub(f.dataset.id, new FormData(f).get('text')),
   'add-grade': (f) => addGrade(f),
   'add-schedule': (f) => addSchedule(f),
+  'add-event': (f) => addEvent(f),
+  'edit-sub': (f) => saveSub(f),
   'add-subject': (f) => addSubject(new FormData(f).get('subject')),
 };
 
@@ -104,7 +109,7 @@ document.addEventListener('change', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') return closeModal();
+  if (e.key === 'Escape') { if (taskUI.editSub) { taskUI.editSub = null; render(); } return closeModal(); }
   const typing = document.activeElement && document.activeElement.matches('input, textarea, select');
   if (currentTab === 'pomodoro' && !typing && $('#modal').classList.contains('hidden') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
     goSlide(curSlide + (e.key === 'ArrowRight' ? 1 : -1));
@@ -113,6 +118,7 @@ document.addEventListener('keydown', (e) => {
 
 // 남은 시간 표시 갱신 (입력 중이거나 모달이 열려 있으면 건너뜀)
 setInterval(() => {
+  checkDeadlines();
   const typing = document.activeElement && document.activeElement.matches('input, textarea, select');
   if (['pomodoro', 'todo'].includes(currentTab) && $('#modal').classList.contains('hidden') && !typing) render();
 }, 60000);
@@ -127,5 +133,6 @@ if (DEMO && params.has('pomo') && recommend().length) {
 if (DEMO) $('.topbar h1').insertAdjacentHTML('beforeend', ' <span class="badge" title="샘플 데이터로 보여주며 변경 사항은 저장되지 않습니다">데모 · 저장 안 됨</span>');
 applyTheme();
 render();
+checkDeadlines();
 // 데모 + &form: 과제 추가 화면을 연 상태 (자동 예상 시간 확인·스크린샷용)
 if (DEMO && params.has('form')) openTaskForm(null);

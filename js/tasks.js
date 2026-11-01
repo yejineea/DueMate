@@ -97,9 +97,14 @@ function taskDetail(t) {
       <ul class="subtasks">${t.subtasks.map((s) => `
         <li class="${s.done ? 'done' : ''}">
           <input type="checkbox" data-action="toggle-sub" data-id="${t.id}" data-sid="${s.id}" ${s.done ? 'checked' : ''}>
+          ${taskUI.editSub === s.id ? `
+          <form class="inline sub-edit" data-form="edit-sub" data-id="${t.id}" data-sid="${s.id}">
+            <input name="text" value="${esc(s.text)}" required maxlength="60">
+            <button class="btn xs primary">저장</button><button type="button" class="btn xs" data-action="cancel-sub">취소</button>
+          </form>` : `
           <span>${esc(s.text)}</span>
-          <button class="btn xs" data-action="edit-sub" data-id="${t.id}" data-sid="${s.id}">✎</button>
-          <button class="btn xs" data-action="del-sub" data-id="${t.id}" data-sid="${s.id}">✕</button>
+          <button class="btn xs" data-action="edit-sub" data-id="${t.id}" data-sid="${s.id}" title="수정">✎</button>
+          <button class="btn xs" data-action="del-sub" data-id="${t.id}" data-sid="${s.id}" title="삭제">✕</button>`}
         </li>`).join('')}</ul>
       <form class="inline" data-form="add-sub" data-id="${t.id}">
         <input name="text" placeholder="하위 작업 추가" required maxlength="60">
@@ -237,6 +242,7 @@ function toggleDone(id) {
   t.doneAt = t.done ? Date.now() : null;
   if (t.done) stopTimerOf(id);
   save(); render();
+  if (t.done) toast(`'${t.title}' 완료`, () => { t.done = false; t.doneAt = null; save(); render(); });
 }
 
 function toggleSub(id, sid) {
@@ -244,9 +250,11 @@ function toggleSub(id, sid) {
   const s = t.subtasks.find((x) => x.id === sid);
   s.done = !s.done;
   const allDone = t.subtasks.every((x) => x.done);
-  if (allDone && !t.done) { t.done = true; t.doneAt = Date.now(); toast('모든 하위 작업 완료! 과제가 완료 처리되었습니다 🎉'); }
+  const finished = allDone && !t.done;
+  if (finished) { t.done = true; t.doneAt = Date.now(); stopTimerOf(id); }
   else if (!allDone && t.done) { t.done = false; t.doneAt = null; }
   save(); render();
+  if (finished) toast('모든 단계 완료! 과제를 완료 처리했습니다 🎉', () => { s.done = false; t.done = false; t.doneAt = null; save(); render(); });
 }
 
 function addSub(id, text) {
@@ -257,10 +265,20 @@ function addSub(id, text) {
   save(); render();
 }
 
+// 하위 작업 수정: 브라우저 입력창 대신 그 자리에 입력칸을 연다
 function editSub(id, sid) {
-  const s = getTask(id).subtasks.find((x) => x.id === sid);
-  const v = prompt('하위 작업 수정', s.text);
-  if (v && v.trim()) { s.text = v.trim(); save(); render(); }
+  taskUI.editSub = sid;
+  render();
+  const input = $('.sub-edit input');
+  if (input) { input.focus(); input.select(); }
+}
+
+function saveSub(form) {
+  const s = getTask(form.dataset.id).subtasks.find((x) => x.id === form.dataset.sid);
+  const v = new FormData(form).get('text').trim();
+  if (s && v) s.text = v;
+  taskUI.editSub = null;
+  save(); render();
 }
 
 function delSub(id, sid) {
