@@ -68,7 +68,7 @@ function taskCard(t) {
         <div class="bar"><span style="width:${p}%"></span></div>
       </div>
       <div class="task-actions">
-        <button class="btn sm" data-action="timer-start" data-id="${t.id}" ${t.done ? 'disabled' : ''} title="타이머 시작">⏱</button>
+        <button class="btn sm" data-action="pomo-start" data-id="${t.id}" ${t.done ? 'disabled' : ''} title="뽀모도로 시작">🍅</button>
         <button class="btn sm" data-action="edit-task" data-id="${t.id}">수정</button>
         <button class="btn sm danger" data-action="delete-task" data-id="${t.id}">삭제</button>
       </div>
@@ -188,7 +188,7 @@ function toggleDone(id) {
   const t = getTask(id);
   t.done = !t.done;
   t.doneAt = t.done ? Date.now() : null;
-  if (t.done && state.timer && state.timer.taskId === id) timerStop();
+  if (t.done && state.timer && state.timer.taskId === id) pomoStop();
   save(); render();
 }
 

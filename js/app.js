@@ -8,7 +8,7 @@ function render() {
   const fn = window[VIEWS[currentTab]];
   $('#view').innerHTML = typeof fn === 'function' ? fn() : '<section class="panel"><p class="empty">준비 중인 기능입니다.</p></section>';
   $$('#tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === currentTab));
-  if (typeof renderTimerBar === 'function') renderTimerBar();
+  renderTimerBar();
 }
 
 function applyTheme() { document.documentElement.dataset.theme = state.settings.theme; }
@@ -26,9 +26,11 @@ const actions = {
   'del-sub': (el) => delSub(el.dataset.id, el.dataset.sid),
   'fill-template': () => fillTemplate(),
   'close-modal': () => closeModal(),
-  'timer-start': (el) => timerStart(el.dataset.id),
-  'timer-pause': () => timerPause(),
-  'timer-stop': () => timerStop(),
+  'pomo-start': (el) => startPomodoro(el.dataset.id),
+  'pomo-pause': () => pausePomodoro(),
+  'pomo-resume': () => resumePomodoro(),
+  'pomo-skip': () => skipBreak(),
+  'pomo-stop': () => stopPomodoro(),
   'cal-prev': () => calMove(-1),
   'cal-next': () => calMove(1),
   'cal-today': () => calToday(),
@@ -90,6 +92,12 @@ setInterval(() => {
   const typing = document.activeElement && document.activeElement.matches('input, textarea, select');
   if (['dashboard', 'tasks', 'calendar'].includes(currentTab) && $('#modal').classList.contains('hidden') && !typing) render();
 }, 60000);
+
+// 데모 + &pomo: 1순위 과제의 뽀모도로가 진행 중인 화면 (스크린샷·체험용)
+if (DEMO && params.has('pomo') && recommend().length) {
+  pomoBegin(recommend()[0].t.id, Date.now() - 12 * MIN);
+  state.timer.count = 2;
+}
 
 applyTheme();
 render();

@@ -126,6 +126,78 @@ describe('오늘 계획', () => {
   });
 });
 
+describe('뽀모도로', () => {
+  const T0 = at(0, '14:00');
+  function begin(settings = {}) {
+    fresh();
+    Object.assign(state.settings.pomodoro, settings);
+    state.tasks = [task({ title: 'P', estHours: 4 })];
+    pomoBegin(state.tasks[0].id, T0);
+    return state.tasks[0];
+  }
+  test('시작하면 집중 25분이 흐른다', () => {
+    begin();
+    eq(state.timer.phase, 'focus'); eq(pomoLeft(T0 + 5 * MIN), 20 * MIN);
+  });
+  test('일시정지한 동안은 시간이 줄지 않는다', () => {
+    begin();
+    pomoPause(T0 + 10 * MIN);
+    eq(pomoLeft(T0 + 40 * MIN), 15 * MIN);
+    pomoResume(T0 + 40 * MIN);
+    eq(state.timer.endsAt, T0 + 55 * MIN);
+  });
+  test('집중이 끝나면 25분이 뽀모도로로 기록되고 짧은 휴식이 바로 시작된다', () => {
+    const t = begin();
+    const ev = pomoAdvance(T0 + 25 * MIN);
+    eq([ev.from, ev.to], ['focus', 'short']);
+    eq(t.logs.map((l) => [l.ms, l.pomo]), [[25 * MIN, 1]]);
+    eq(state.timer.endsAt, T0 + 30 * MIN);
+  });
+  test('4회째 집중 뒤에는 긴 휴식이다', () => {
+    begin();
+    let now = T0;
+    for (let i = 0; i < 3; i++) { now += 25 * MIN; pomoAdvance(now); now += 5 * MIN; pomoAdvance(now); pomoResume(now); }
+    now += 25 * MIN;
+    eq(pomoAdvance(now).to, 'long');
+    eq(state.timer.dur, 15 * MIN);
+  });
+  test('휴식이 끝나면 집중은 사용자가 시작할 때까지 기다린다 (자동 시작 끔)', () => {
+    begin();
+    pomoAdvance(T0 + 25 * MIN);
+    pomoAdvance(T0 + 30 * MIN);
+    eq(state.timer.phase, 'focus'); eq(state.timer.endsAt, null); eq(state.timer.left, 25 * MIN);
+  });
+  test('자동 시작을 켜면 휴식 뒤 집중이 바로 시작된다', () => {
+    begin({ autoFocus: true });
+    pomoAdvance(T0 + 25 * MIN);
+    pomoAdvance(T0 + 30 * MIN);
+    eq(state.timer.endsAt, T0 + 55 * MIN);
+  });
+  test('중간에 종료하면 집중한 시간만 기록하고 뽀모도로 수에는 넣지 않는다', () => {
+    const t = begin();
+    eq(pomoStop(T0 + 12 * MIN), 12 * MIN);
+    eq(state.timer, null);
+    eq(pomoCount(t), 0); near(actualMs(t), 12 * MIN);
+  });
+  test('1분 미만으로 집중하고 종료하면 기록하지 않는다', () => {
+    const t = begin();
+    pomoStop(T0 + 30e3);
+    eq(t.logs.length, 0);
+  });
+  test('탭을 닫아둔 사이 끝난 집중은 기록하되 휴식은 자동 시작하지 않는다', () => {
+    const t = begin();
+    pomoAdvance(T0 + 3 * HOUR);
+    eq(pomoCount(t), 1); eq(state.timer.endsAt, null); eq(state.timer.phase, 'short');
+  });
+  test('뽀모도로 기록이 남은 작업량과 오늘 계획에 반영된다', () => {
+    const t = begin();
+    const before = remainingWork(t);
+    pomoAdvance(T0 + 25 * MIN);
+    near(before - remainingWork(t), 25 / 60);
+  });
+  state.timer = null;
+});
+
 describe('성적 계산', () => {
   test('입력된 항목만으로 현재 성적을 환산한다', () => {
     const r = calcGrade([{ id: 1, name: '중간', weight: 30, max: 100, score: 80 }, { id: 2, name: '기말', weight: 70, max: 100, score: null }]);
