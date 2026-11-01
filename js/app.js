@@ -152,6 +152,11 @@ if (DEMO && params.has('pomo') && recommend().length) {
 
 if (DEMO && params.get('theme')) state.settings.theme = params.get('theme'); // 스크린샷용: &theme=dark
 if (DEMO) $('.topbar h1').insertAdjacentHTML('beforeend', ' <span class="badge" title="샘플 데이터로 보여주며 변경 사항은 저장되지 않습니다">데모 · 저장 안 됨</span>');
+// 데모 + &open: 단계(하위 작업)가 있는 첫 과제를 펼친 상태 (스크린샷용)
+if (DEMO && params.has('open')) {
+  const t = recommend().map((r) => r.t).find((x) => x.subtasks.length);
+  if (t) taskUI.open.add(t.id);
+}
 applyTheme();
 render();
 checkDeadlines();

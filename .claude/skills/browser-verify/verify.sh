@@ -50,6 +50,7 @@ case "${1:-test}" in
     # README용: 오후 3시로 시계를 맞춘 데모 (밤에 찍어도 오늘 계획이 비지 않게)
     shot v2-pomodoro "demo&at=15:00&tab=pomodoro&pomo" 900
     shot v2-todo "demo&at=15:00&tab=todo" 900
+    shot v2-todo-open "demo&at=15:00&tab=todo&open" 900
     shot v2-calendar "demo&at=15:00&tab=todo&view=calendar" 900
     shot v2-report "demo&at=15:00&tab=report" 1250
     shot v2-grades "demo&at=15:00&tab=report&view=grades" 820
