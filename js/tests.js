@@ -301,6 +301,41 @@ describe('v1 데이터 호환', () => {
   });
 });
 
+describe('샘플 데이터 날짜 자동 이동', () => {
+  function sampleAt(base) {
+    return normalize({
+      sampleBase: base,
+      tasks: [
+        task({ title: '샘플', sample: true, due: `${base}T18:00`, logs: [{ date: base, ms: HOUR, pomo: 1 }] }),
+        task({ title: '샘플완료', sample: true, done: true, doneAt: new Date(`${base}T21:00`).getTime(), due: `${base}T23:59` }),
+        task({ title: '내 과제', due: `${base}T12:00` }),
+      ],
+    });
+  }
+  test('불러온 지 5일 지나면 샘플 과제의 마감·완료·기록 날짜를 5일 민다', () => {
+    const base = ymd(addDays(new Date(), -5));
+    const s = sampleAt(base);
+    const [a, b] = s.tasks;
+    eq(a.due, `${ymd(new Date())}T18:00`);
+    eq(a.logs[0].date, ymd(new Date()));
+    eq(ymd(new Date(b.doneAt)), ymd(new Date()));
+    eq(s.sampleBase, ymd(new Date()));
+  });
+  test('직접 추가한 과제는 옮기지 않는다', () => {
+    const base = ymd(addDays(new Date(), -5));
+    eq(sampleAt(base).tasks[2].due, `${base}T12:00`);
+  });
+  test('같은 날 다시 열면 그대로다', () => {
+    const today = ymd(new Date());
+    eq(sampleAt(today).tasks[0].due, `${today}T18:00`);
+  });
+  test('새로 만든 샘플 데이터에는 불러온 날짜가 기록된다', () => {
+    const s = sampleState();
+    eq(s.sampleBase, ymd(new Date()));
+    ok(s.tasks.every((t) => t.sample), '모든 샘플 과제 표시');
+  });
+});
+
 describe('화면 렌더링', () => {
   const views = { 오늘: () => renderToday(), 과제: () => renderTasks(), 캘린더: () => renderCalendar(),
     통계: () => renderStats(), 성적: () => renderGrades(), 설정: () => renderSettings() };

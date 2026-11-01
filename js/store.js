@@ -32,7 +32,24 @@ function normalize(data) {
     if (t && ms >= 1000) t.logs = [...t.logs, { date: ymd(new Date()), ms }];
     s.timer = null;
   }
+  rollSample(s);
   return s;
+}
+
+// 샘플 과제는 불러온 날(sampleBase) 기준으로 만들어진다. 며칠 뒤에 열어도 지난 과제가 되지 않도록
+// 지난 일수만큼 샘플 과제의 마감·완료·기록 날짜를 함께 앞으로 민다. 사용자가 직접 추가한 과제는 그대로 둔다.
+function rollSample(s, now = Date.now()) {
+  if (!s.sampleBase) return;
+  const days = Math.round((startOfDay(new Date(now)) - new Date(`${s.sampleBase}T00:00`)) / 864e5);
+  if (days <= 0) return;
+  const shiftDay = (date) => ymd(addDays(new Date(`${date}T00:00`), days));
+  s.tasks.filter((t) => t.sample).forEach((t) => {
+    const d = new Date(t.due);
+    t.due = `${shiftDay(ymd(d))}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    if (t.doneAt) t.doneAt = addDays(new Date(t.doneAt), days).getTime();
+    t.logs = t.logs.map((l) => ({ ...l, date: shiftDay(l.date) }));
+  });
+  s.sampleBase = ymd(new Date(now));
 }
 
 function load() {
@@ -118,7 +135,8 @@ function sampleState() {
       done: true, doneAt: doneAt(6, 23), logs: pomos([[7, 4], [9, 3]]) },
     { title: '경영학원론 1주차 리포트', subject: '경영학원론', type: '보고서', due: due(-10), estHours: 2, importance: 3, difficulty: 2,
       done: true, doneAt: doneAt(9), logs: pomos([[10, 3], [12, 2]]) },
-  ].map((t) => ({ id: uid(), desc: '', memo: '', done: false, doneAt: null, createdAt: Date.now(), subtasks: [], logs: [], ...t }));
+  ].map((t) => ({ id: uid(), desc: '', memo: '', done: false, doneAt: null, createdAt: Date.now(), subtasks: [], logs: [], sample: true, ...t }));
+  s.sampleBase = ymd(new Date());
   s.grades = {
     자료구조: [
       { id: uid(), name: '중간고사', weight: 30, max: 100, score: null },
