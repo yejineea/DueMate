@@ -48,25 +48,11 @@ function renderStats() {
     return { label: s, value: ts.filter((t) => t.done).length, total: ts.length };
   });
 
-  const ws = startOfWeek(new Date());
-  const weekly = [...Array(6)].map((_, i) => {
-    const s = addDays(ws, -7 * (5 - i)), e = addDays(s, 7);
-    return { label: `${s.getMonth() + 1}/${s.getDate()}주`, value: done.filter((t) => t.doneAt >= s.getTime() && t.doneAt < e.getTime()).length };
-  });
-  const monthly = [...Array(6)].map((_, i) => {
-    const d = new Date();
-    const s = new Date(d.getFullYear(), d.getMonth() - (5 - i), 1);
-    const e = new Date(s.getFullYear(), s.getMonth() + 1, 1);
-    return { label: `${s.getMonth() + 1}월`, value: done.filter((t) => t.doneAt >= s.getTime() && t.doneAt < e.getTime()).length };
-  });
 
   const logMap = {};
   all.forEach((t) => t.logs.forEach((l) => { logMap[l.date] = (logMap[l.date] || 0) + l.ms; }));
-  const pomoMap = {};
-  all.forEach((t) => t.logs.forEach((l) => { if (l.pomo) pomoMap[l.date] = (pomoMap[l.date] || 0) + 1; }));
   const last14 = [...Array(14)].map((_, i) => addDays(startOfDay(new Date()), -(13 - i)));
   const daily = last14.map((d) => ({ label: `${d.getMonth() + 1}/${d.getDate()}`, value: hours(logMap[ymd(d)] || 0) }));
-  const dailyPomo = last14.map((d) => ({ label: `${d.getMonth() + 1}/${d.getDate()}`, value: pomoMap[ymd(d)] || 0 }));
   const weekFrom = ymd(startOfWeek(new Date()));
   const weekMs = Object.entries(logMap).filter(([d]) => d >= weekFrom).reduce((a, [, ms]) => a + ms, 0);
 
@@ -77,22 +63,17 @@ function renderStats() {
   return `
   <section class="cards">
     <div class="card stat"><div class="num">${rate}%</div><div>전체 완료율 (${done.length}/${all.length})</div></div>
-    <div class="card stat"><div class="num tomato">${todayPomos()}</div><div>오늘 완료한 뽀모도로</div></div>
     <div class="card stat"><div class="num">${hours(weekMs)}h</div><div>이번 주 집중 시간</div></div>
-    <div class="card stat"><div class="num ${overdue ? 'red' : ''}">${overdue}</div><div>미제출 (마감 경과) · 지연 완료 ${late}</div></div>
+    <div class="card stat"><div class="num ${overdue ? 'red' : ''}">${overdue}</div><div>미제출 · 지연 완료 ${late}</div></div>
+    <div class="card stat"><div class="num">×${calibration().overall.toFixed(2)}</div><div title="실제 ÷ 예상 · 1에 가까울수록 정확">예상 정확도</div></div>
   </section>
   <section class="grid2">
     <div class="panel"><h3>앞으로 7일 작업량 vs 공부 가능 시간</h3>${weekChart(weekLoad(startOfDay(new Date())))}</div>
     <div class="panel"><h3>향후 4주 작업량 (7일 단위)</h3>${futureWeeks()}<p class="muted small">남은 작업 / 공부 가능</p></div>
   </section>
   <section class="grid2">
-    <div class="panel"><h3>최근 14일 뽀모도로</h3>${vChart(dailyPomo)}</div>
     <div class="panel"><h3>최근 14일 학습 시간</h3>${vChart(daily, 'h')}</div>
-  </section>
-  <section class="panel"><h3>과목별 완료 현황</h3>${bySub.map((r) => hRow(r.label, r.value, r.total, `${r.value}/${r.total} 완료`)).join('')}</section>
-  <section class="grid2">
-    <div class="panel"><h3>주간 완료 과제 수</h3>${vChart(weekly)}</div>
-    <div class="panel"><h3>월간 완료 과제 수</h3>${vChart(monthly)}</div>
+    <div class="panel"><h3>과목별 완료</h3>${bySub.map((r) => hRow(r.label, r.value, r.total, `${r.value}/${r.total}`)).join('')}</div>
   </section>
   <section class="panel">
     <h3>완료한 과제의 예상 시간 vs 실제 작업 시간</h3>

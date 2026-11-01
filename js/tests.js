@@ -657,7 +657,13 @@ describe('화면 조작 (실제 클릭·입력)', () => {
   window.confirm = () => true;
   const click = (sel) => { const el = $(sel); if (!el) throw new Error(`${sel} 없음`); el.click(); };
   const change = (sel, value) => { const el = $(sel); el.value = value; el.dispatchEvent(new Event('change', { bubbles: true })); };
-  function show(tab) { state = sampleState(); focusPick = null; slideKeep = null; currentTab = tab; render(); }
+  function show(tab) {
+    state = sampleState();
+    // 언제 실행해도 오늘 계획에 시간이 남도록 활동 시간을 '지금 시각부터 24시간'으로 (밤늦게 실행하면 계획이 비어 실패하던 문제)
+    const h = `${pad(new Date().getHours())}:00`;
+    state.settings.dayStart = h; state.settings.dayEnd = h;
+    focusPick = null; slideKeep = null; currentTab = tab; render();
+  }
 
   const cur = (sel = '') => `.slide.current ${sel}`;
   test('가운데 큰 원 안의 시작 버튼을 누르면 보고 있는 과제의 뽀모도로가 시작된다', () => {
@@ -870,6 +876,7 @@ describe('화면 조작 (실제 클릭·입력)', () => {
   });
   test('일정 추가에서 하루만을 고르면 그날만 공부 가능 시간이 줄어든다', () => {
     show('settings');
+    state.settings.dayStart = '09:00'; state.settings.dayEnd = '00:00'; render(); // 기본 활동 시간 기준으로 검증
     state.schedule = []; render(); // 다른 일정과 겹치지 않게
     const date = ymd(addDays(new Date(), 3));
     const before = dayCapacity(new Date(`${date}T00:00`)).fixedH;
@@ -1001,6 +1008,7 @@ describe('화면 조작 (실제 클릭·입력)', () => {
   });
   test('설정에서 활동 시간을 바꾸면 공부 가능 시간이 다시 계산된다', () => {
     show('settings');
+    state.settings.dayStart = '09:00'; state.settings.dayEnd = '00:00'; render(); // 기본 활동 시간 기준으로 검증
     change('[data-setting="dayStart"]', '13:00');
     eq(state.settings.dayStart, '13:00');
     near(dayCapacity(new Date()).winH, 11);
